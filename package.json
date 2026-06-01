@@ -1,0 +1,101 @@
+{
+  "name": "ontonim-ai",
+  "displayName": "Ontonim AI",
+  "description": "An agentic AI coding assistant that can read, write, edit, and search files inside your workspace.",
+  "version": "0.1.0",
+  "publisher": "ontonim-ai",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Linters"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "ontonim-ai-sidebar",
+          "title": "Ontonim AI",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ontonim-ai-sidebar": [
+        {
+          "type": "webview",
+          "id": "ontonim-ai.chatView",
+          "name": "Ontonim AI Assistant"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "ontonim-ai.focusSidebar",
+        "title": "Ontonim AI: Focus Chat Panel",
+        "icon": "resources/icon.svg"
+      },
+      {
+        "command": "ontonim-ai.setApiKey",
+        "title": "Ontonim AI: Set OpenRouter API Key"
+      },
+      {
+        "command": "ontonim-ai.clearApiKey",
+        "title": "Ontonim AI: Clear OpenRouter API Key"
+      },
+      {
+        "command": "ontonim-ai.explainAndFix",
+        "title": "Ontonim AI: Explain and Fix Error"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ontonim-ai.explainAndFix",
+        "key": "ctrl+shift+.",
+        "when": "editorHasDiagnostics && editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "ontonim-ai.focusSidebar",
+          "group": "navigation",
+          "when": "true"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Ontonim AI",
+      "properties": {
+        "ontonimAi.defaultModel": {
+          "type": "string",
+          "default": "google/gemini-2.5-flash",
+          "description": "Default model to use for Ontonim AI conversations.",
+          "enum": [
+            "google/gemini-2.5-flash",
+            "google/gemini-2.5-pro",
+            "anthropic/claude-3.5-sonnet",
+            "meta-llama/llama-3.3-70b-instruct",
+            "deepseek/deepseek-chat"
+          ]
+        },
+        "ontonimAi.autoApproveTools": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically run read-only tools without prompting for user approval."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "eslint": "^9.39.3"
+  }
+}

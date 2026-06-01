@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ontonim AI Chat</title>
+    <style>
+        :root {
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            --bg-darker: rgba(15, 23, 42, 0.95);
+            --bg-card: var(--vscode-editor-background, #1e1e1e);
+            --chat-bg: rgba(139, 92, 246, 0.03);
+            --text-main: var(--vscode-editor-foreground, #cccccc);
+            --text-muted: var(--vscode-descriptionForeground, #888888);
+            --border-color: var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
+            --input-bg: var(--vscode-input-background, #252526);
+            --input-fg: var(--vscode-input-foreground, #cccccc);
+            --button-bg: var(--vscode-button-background, #0e639c);
+            --button-fg: var(--vscode-button-foreground, #ffffff);
+            --button-hover: var(--vscode-button-hoverBackground, #1177bb);
+            --glow-color: rgba(139, 92, 246, 0.25);
+        }
+
+        /* ===== THEMES ===== */
+        [data-theme="midnight"] {
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            --chat-bg: rgba(139, 92, 246, 0.03);
+            --glow-color: rgba(139, 92, 246, 0.25);
+        }
+        [data-theme="ocean"] {
+            --accent-primary: #06b6d4;
+            --accent-secondary: #0ea5e9;
+            --accent-gradient: linear-gradient(135deg, #06b6d4, #0ea5e9);
+            --chat-bg: rgba(6, 182, 212, 0.03);
+            --glow-color: rgba(6, 182, 212, 0.25);
+        }
+        [data-theme="emerald"] {
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-gradient: linear-gradient(135deg, #10b981, #059669);
+            --chat-bg: rgba(16, 185, 129, 0.03);
+            --glow-color: rgba(16, 185, 129, 0.25);
+        }
+        [data-theme="rose"] {
+            --accent-primary: #f43f5e;
+            --accent-secondary: #e11d48;
+            --accent-gradient: linear-gradient(135deg, #f43f5e, #fb7185);
+            --chat-bg: rgba(244, 63, 94, 0.03);
+            --glow-color: rgba(244, 63, 94, 0.25);
+        }
+        [data-theme="amber"] {
+            --accent-primary: #f59e0b;
+            --accent-secondary: #d97706;
+            --accent-gradient: linear-gradient(135deg, #f59e0b, #fbbf24);
+            --chat-bg: rgba(245, 158, 11, 0.03);
+            --glow-color: rgba(245, 158, 11, 0.25);
+        }
+        [data-theme="slate"] {
+            --accent-primary: #64748b;
+            --accent-secondary: #475569;
+            --accent-gradient: linear-gradient(135deg, #64748b, #94a3b8);
+            --chat-bg: rgba(100, 116, 139, 0.04);
+            --glow-color: rgba(100, 116, 139, 0.2);
+        }
+
+        body {
+            font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+            font-size: var(--vscode-font-size, 13px);
+            color: var(--text-main);
+            background-color: var(--bg-card);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, rgba(0, 0, 0, 0.2) 100%);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .header-title-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--accent-gradient);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white;
+            font-size: 13px;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+            animation: pulseGlow 3s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 6px rgba(139, 92, 246, 0.3); }
+            100% { box-shadow: 0 0 14px rgba(139, 92, 246, 0.7); }
+        }
+
+        .header-title {
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.8px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Compact Header Selectors */
+        .model-picker-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 4px 8px;
+            padding-right: 20px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            max-width: 130px;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: all 0.2s;
+        }
+
+        .header-select:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 8px;
+            pointer-events: none;
+            color: var(--text-muted);
+            font-size: 8px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .icon-btn:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.06);
+            transform: scale(1.05);
+        }
+
+        .icon-btn.active {
+            color: white;
+            background: var(--accent-gradient);
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Modified Files Bar */
+        .modified-files-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background-color: rgba(139, 92, 246, 0.04);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 11px;
+            box-sizing: border-box;
+            z-index: 8;
+        }
+        
+        .modified-files-bar::-webkit-scrollbar {
+            height: 3px;
+        }
+        .modified-files-bar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .modified-files-bar::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-radius: 1.5px;
+        }
+
+        .modified-files-title {
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        .modified-files-list {
+            display: flex;
+            gap: 6px;
+        }
+
+        .modified-file-chip {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            padding: 3px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s;
+        }
+
+        .modified-file-chip:hover {
+            border-color: var(--accent-primary);
+            background: rgba(139, 92, 246, 0.1);
+            transform: scale(1.02);
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            display: none;
+            padding: 16px;
+            background-color: rgba(30, 41, 59, 0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            flex-direction: column;
+            gap: 12px;
+            animation: slideDown 0.2s ease-out;
+            z-index: 9;
+        }
+
+        /* Prompt History Panel */
+        .history-panel {
+            display: none;
+            flex-direction: column;
+            max-height: 280px;
+            background-color: var(--bg-darker);
+            backdrop-filter: blur(14px);
+            z-index: 1000;
+            animation: slideDown 0.2s ease-out;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 70px; /* Float above the input panel */
+            padding: 10px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .history-header span {
+            font-weight: 700;
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .history-clear-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .history-clear-btn:hover {
+            background: rgba(239, 68, 68, 0.12);
+        }
+
+        .history-items {
+            overflow-y: auto;
+            padding: 8px 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid transparent;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.015);
+            margin-bottom: 4px;
+        }
+
+        .history-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .history-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-time {
+            font-size: 9.5px;
+            color: var(--accent-primary);
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            opacity: 0.85;
+            white-space: nowrap;
+        }
+
+        .history-text {
+            font-size: 11.5px;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 85%;
+        }
+
+        .history-delete {
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .history-delete:hover {
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-8px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings-group label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .settings-input {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--input-fg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .settings-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 6px var(--glow-color);
+        }
+
+        .settings-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 11.5px;
+        }
+
+        .save-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 3px 10px rgba(139, 92, 246, 0.25);
+        }
+
+        .save-btn:hover {
+            box-shadow: 0 5px 14px rgba(139, 92, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* Chat History Scroll Area */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+            background-color: var(--chat-bg);
+            transition: background-color 0.35s ease;
+        }
+
+        /* Theme swatches */
+        .theme-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .theme-section label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .theme-swatches {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .theme-swatch {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2.5px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+            outline: none;
+        }
+
+        .theme-swatch:hover {
+            transform: scale(1.15);
+        }
+
+        .theme-swatch.active {
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3), 0 0 10px rgba(255,255,255,0.15);
+            transform: scale(1.1);
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+        }
+
+        /* Welcome Dashboard */
+        .welcome-container {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            text-align: center;
+            max-width: 92%;
+            margin: auto;
+            padding: 15px 0;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .welcome-logo {
+            font-size: 34px;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2.5px;
+            margin-bottom: -5px;
+        }
+
+        .welcome-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .welcome-actions-header {
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            text-align: left;
+        }
+
+        .welcome-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .quick-action-card {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quick-action-card:hover {
+            background-color: rgba(139, 92, 246, 0.05);
+            border-color: rgba(139, 92, 246, 0.25);
+            transform: translateY(-1.5px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .quick-action-card svg {
+            color: var(--accent-primary);
+            flex-shrink: 0;
+        }
+
+        .quick-action-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .quick-action-title {
+            font-weight: 600;
+            font-size: 11.5px;
+            color: var(--text-main);
+        }
+
+        .quick-action-desc {
+            font-size: 9.5px;
+            color: var(--text-muted);
+        }
+
+        /* Message Bubbles */
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-width: 95%;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            max-width: 88%;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .message-bubble {
+            padding: 10px 14px;
+            border-radius: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+            font-size: 12.5px;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: var(--accent-gradient);
+            color: white;
+            border-bottom-right-radius: 3px;
+            box-shadow: 0 3px 10px rgba(139, 92, 246, 0.2);
+        }
+
+        .message.assistant .message-bubble {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 3px;
+            color: var(--text-main);
+        }
+
+        /* Message Headers (Sender name & Edit button) */
+        .message-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+
+        .message-sender {
+            font-size: 9.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message.user .message-sender {
+            align-self: flex-end;
+        }
+
+        /* Action buttons row for messages */
+        .message-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .msg-action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .msg-action-btn:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .msg-action-btn.copied {
+            color: #34d399;
+        }
+
+        /* Collapsible assistant message */
+        .message.assistant .message-bubble {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .message.assistant.collapsed .message-bubble {
+            max-height: 60px;
+            -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+
+        .collapse-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--accent-primary);
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 5px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .collapse-toggle-btn:hover {
+            background-color: rgba(139, 92, 246, 0.12);
+        }
+
+        /* Edit Textarea Container inside Message Bubble */
+        .edit-textarea-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .edit-textarea {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            resize: none;
+            font-family: inherit;
+            font-size: 12.5px;
+            line-height: 1.45;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .edit-textarea:focus {
+            border-color: #d8b4fe;
+            box-shadow: 0 0 6px rgba(139, 92, 246, 0.4);
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .btn-edit-save {
+            background: rgba(255, 255, 255, 0.95);
+            color: #0f172a;
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 5px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-edit-save:hover {
+            background: white;
+            transform: translateY(-0.5px);
+        }
+
+        .btn-edit-cancel {
+            background: rgba(0, 0, 0, 0.2);
+            color: #e2e8f0;
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-edit-cancel:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Interactive Follow-up Chips */
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .chip {
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            color: #d8b4fe;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .chip:hover {
+            background: rgba(139, 92, 246, 0.16);
+            border-color: rgba(139, 92, 246, 0.45);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+        }
+
+        /* Tool Cards inside Chat */
+        .tool-request-container {
+            background: rgba(139, 92, 246, 0.05);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .tool-request-container.collapsed .tool-list {
+            display: none;
+        }
+        
+        .tool-request-container.collapsed .tool-actions {
+            display: none;
+        }
+
+        .tool-collapse-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 2px 0;
+            user-select: none;
+        }
+
+        .tool-collapse-header:hover {
+            color: #d8b4fe;
+        }
+
+        .tool-collapse-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #34d399;
+        }
+
+        .tool-collapse-icon {
+            font-size: 9px;
+            color: var(--text-muted);
+            font-weight: 700;
+            transition: transform 0.2s;
+        }
+
+        .card-modified-files {
+            margin-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .card-modified-files-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-modified-files-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tool-request-header {
+            font-weight: 700;
+            font-size: 11.5px;
+            color: #d8b4fe;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .tool-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 10.5px;
+        }
+
+        .tool-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tool-badge {
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .tool-badge.read {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .tool-badge.write {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+        }
+
+        .tool-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-0.5px);
+        }
+
+        .btn-approve {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 3px 8px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-reject {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        /* Pre and Code block elements */
+        pre {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 10px;
+            overflow-x: auto;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        code {
+            font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+            font-size: 11.5px;
+            line-height: 1.45;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(15, 23, 42, 0.85);
+            padding: 6px 10px;
+            font-size: 10px;
+            color: var(--text-muted);
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            margin: -10px -10px 8px -10px;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .code-action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 9.5px;
+            padding: 2.5px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .code-action-btn:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .code-action-btn.copy:hover { color: #60a5fa; }
+        .code-action-btn.insert:hover { color: #34d399; }
+        .code-action-btn.newfile:hover { color: #a78bfa; }
+
+        /* Thinking/Typing Indicator */
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            border-bottom-left-radius: 3px;
+            align-self: flex-start;
+            margin-top: 4px;
+            color: var(--text-muted);
+            animation: pulse 1.8s infinite;
+        }
+
+        .dot {
+            width: 5px;
+            height: 5px;
+            background-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite both;
+            box-shadow: 0 0 3px var(--accent-primary);
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Floating Input Panel */
+        .input-panel {
+            padding: 10px 14px 14px 14px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-sizing: border-box;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            background-color: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .input-wrapper:focus-within {
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow: 0 6px 24px rgba(139, 92, 246, 0.15), 0 0 10px rgba(139, 92, 246, 0.15);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--input-fg);
+            padding: 10px 12px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            font-size: 12.5px;
+            max-height: 120px;
+            min-height: 38px;
+            box-sizing: border-box;
+            line-height: 1.45;
+        }
+
+        .chat-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .send-btn {
+            background: transparent;
+            border: none;
+            color: var(--accent-primary);
+            padding: 0 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .send-btn:hover {
+            color: var(--accent-secondary);
+            transform: scale(1.08) translateY(-0.5px);
+        }
+
+        .send-btn:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            padding: 0 2px;
+        }
+
+        .active-file-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.18);
+            color: #c084fc;
+            padding: 2px 6px;
+            border-radius: 5px;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 9.5px;
+            font-weight: 600;
+        }
+
+        .active-file-badge svg {
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-title-container">
+            <div class="logo-icon">O</div>
+            <span class="header-title">ontonim AI</span>
+        </div>
+        <div class="header-actions">
+            <!-- Model Dropdown -->
+            <div class="model-picker-container">
+                <select id="header-model-select" class="header-select">
+                    <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+                    <option value="deepseek/deepseek-chat">DeepSeek V3 (Chat)</option>
+                </select>
+                <span class="select-arrow">▼</span>
+            </div>
+            
+            <!-- Prompt History Trigger -->
+            <button id="history-toggle" class="icon-btn" title="Prompt History">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            <button id="clear-btn" class="icon-btn" title="Clear Conversation">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+            </button>
+            <button id="settings-toggle" class="icon-btn" title="Settings Config">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modified Files sticky bar (will be updated dynamically) -->
+    <div id="modified-files-bar" class="modified-files-bar" style="display: none;">
+        <div class="modified-files-title">Modified Files:</div>
+        <div id="modified-files-list" class="modified-files-list"></div>
+    </div>
+
+    <!-- Prompt History Panel -->
+    <div id="history-panel" class="history-panel">
+        <div class="history-header">
+            <span>PROMPT HISTORY</span>
+            <button id="clear-all-history" class="history-clear-btn">Clear All</button>
+        </div>
+        <div id="history-items" class="history-items">
+            <!-- Dynamically populated past prompts -->
+        </div>
+    </div>
+
+    <!-- Settings Panel (For API Key & preferences) -->
+    <div id="settings-panel" class="settings-panel">
+        <div class="settings-group">
+            <label for="api-key">OpenRouter API Key</label>
+            <input type="password" id="api-key" class="settings-input" placeholder="sk-or-v1-...">
+        </div>
+        <div class="theme-section">
+            <label>Chat Theme</label>
+            <div class="theme-swatches">
+                <button class="theme-swatch active" data-theme="midnight" title="Midnight Purple" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6);"></button>
+                <button class="theme-swatch" data-theme="ocean" title="Ocean Blue" style="background: linear-gradient(135deg, #06b6d4, #0ea5e9);"></button>
+                <button class="theme-swatch" data-theme="emerald" title="Emerald Green" style="background: linear-gradient(135deg, #10b981, #059669);"></button>
+                <button class="theme-swatch" data-theme="rose" title="Rose Red" style="background: linear-gradient(135deg, #f43f5e, #fb7185);"></button>
+                <button class="theme-swatch" data-theme="amber" title="Amber Gold" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);"></button>
+                <button class="theme-swatch" data-theme="slate" title="Slate Gray" style="background: linear-gradient(135deg, #64748b, #94a3b8);"></button>
+            </div>
+        </div>
+        <div class="settings-checkbox-container" id="auto-approve-container">
+            <input type="checkbox" id="auto-approve">
+            <label for="auto-approve">Auto-approve read tools (list, read, grep)</label>
+        </div>
+        <button id="save-settings-btn" class="save-btn">Save Settings</button>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div id="chat-container" class="chat-container">
+        <!-- Welcoming Dashboard -->
+        <div id="welcome-screen" class="welcome-container">
+            <div class="welcome-logo">ONTONIM AI</div>
+            <div class="welcome-subtitle">
+                An elite coding assistant. Ontonim AI can read and write files directly in your workspace. Ask coding questions, describe modifications, or trigger quick actions.
+                <br><br>
+                <span style="color: #a855f7; font-weight: 700;">Please set your API key in settings ⚙️ to start.</span>
+            </div>
+            
+            <div class="welcome-actions-header">Quick Prompts</div>
+            <div class="welcome-grid">
+                <div class="quick-action-card" onclick="sendQuickPrompt('Explain this active file code in detail and suggest improvement.')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <div class="quick-action-info">
+                        <span class="quick-action-title">Explain Code</span>
+                        <span class="quick-action-desc">Explain the active file code</span>
+                    </div>
+                </div>
+                <div class="quick-action-card" onclick="sendQuickPrompt('Generate unit tests for this active file.')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <div class="quick-action-info">
+                        <span class="quick-action-title">Generate Tests</span>
+                        <span class="quick-action-desc">Create mock unit tests</span>
+                    </div>
+                </div>
+                <div class="quick-action-card" onclick="sendQuickPrompt('Refactor this active file code to make it cleaner and more optimized.')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <div class="quick-action-info">
+                        <span class="quick-action-title">Refactor Code</span>
+                        <span class="quick-action-desc">Optimize structure & performance</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thinking/Writing Indicator -->
+    <div id="thinking-indicator" class="thinking-indicator" style="display: none; margin-left: 16px;">
+        <span id="thinking-text">Ontonim AI is writing code</span>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+
+    <!-- Floating Input Panel -->
+    <div class="input-panel">
+        <div class="input-wrapper">
+            <textarea id="chat-input" class="chat-input" placeholder="Ask a question or describe modifications..." rows="1"></textarea>
+            <button id="send-btn" class="send-btn" title="Send Prompt">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+        <div class="input-footer">
+            <div id="active-file" class="active-file-badge" style="display: none;" title="Active file in editor">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span id="active-file-name" style="margin-left: 3px;">index.js</span>
+            </div>
+            <div>Enter to send, Shift+Enter for new line</div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        
+        const chatContainer = document.getElementById('chat-container');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsPanel = document.getElementById('settings-panel');
+        const historyToggle = document.getElementById('history-toggle');
+        const historyPanel = document.getElementById('history-panel');
+        const historyItemsContainer = document.getElementById('history-items');
+        const clearAllHistoryBtn = document.getElementById('clear-all-history');
+        const apiKeyInput = document.getElementById('api-key');
+        const headerModelSelect = document.getElementById('header-model-select');
+        const autoApproveInput = document.getElementById('auto-approve');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const thinkingIndicator = document.getElementById('thinking-indicator');
+        const thinkingText = document.getElementById('thinking-text');
+        const activeFileBadge = document.getElementById('active-file');
+        const activeFileName = document.getElementById('active-file-name');
+
+        const modifiedFilesBar = document.getElementById('modified-files-bar');
+        const modifiedFilesList = document.getElementById('modified-files-list');
+
+        let currentActiveFilePath = null;
+        let isGenerating = false;
+        let currentToolCard = null;
+
+        // UI tracking for rendering & editing prompts
+        let displayedMessages = []; // Array of { sender: 'user'|'assistant', text: '...', node: Element }
+        let promptHistory = []; // Array of { text: string, ts: number }
+
+        // Load prompt history on init
+        try {
+            const savedHistory = localStorage.getItem('ontonim_ai_prompt_history');
+            if (savedHistory) {
+                promptHistory = JSON.parse(savedHistory);
+            }
+        } catch(e) {}
+
+        function savePromptHistory() {
+            try {
+                localStorage.setItem('ontonim_ai_prompt_history', JSON.stringify(promptHistory));
+            } catch(e) {}
+            renderHistoryPanel();
+        }
+
+        function timeAgo(ts) {
+            const diff = Math.floor((Date.now() - ts) / 1000);
+            if (diff < 60)        return 'just now';
+            if (diff < 3600)      return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400)     return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 2592000)   return Math.floor(diff / 86400) + 'd ago';
+            return Math.floor(diff / 2592000) + 'mo ago';
+        }
+
+        function addToPromptHistory(text) {
+            if (!text || text.trim() === '') return;
+            // Remove duplicates (handle both old string format and new object format)
+            promptHistory = promptHistory.filter(h => {
+                const hText = typeof h === 'string' ? h : (h.text || '');
+                return hText.toLowerCase() !== text.toLowerCase();
+            });
+            // Add to front with timestamp
+            promptHistory.unshift({ text, ts: Date.now() });
+            // Limit to 25 items
+            if (promptHistory.length > 25) {
+                promptHistory.pop();
+            }
+            savePromptHistory();
+        }
+
+        function renderHistoryPanel() {
+            historyItemsContainer.innerHTML = '';
+            if (promptHistory.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.padding = '12px 14px';
+                empty.style.color = 'var(--text-muted)';
+                empty.style.fontSize = '11px';
+                empty.textContent = 'No prompt history yet.';
+                historyItemsContainer.appendChild(empty);
+                return;
+            }
+
+            promptHistory.forEach((entry, index) => {
+                const text = typeof entry === 'string' ? entry : entry.text;
+                const ts   = typeof entry === 'string' ? null  : entry.ts;
+
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                
+                const mainDiv = document.createElement('div');
+                mainDiv.className = 'history-main';
+
+                if (ts) {
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'history-time';
+                    timeSpan.textContent = timeAgo(ts);
+                    timeSpan.dataset.ts = ts;
+                    mainDiv.appendChild(timeSpan);
+                }
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'history-text';
+                textSpan.textContent = text;
+                mainDiv.appendChild(textSpan);
+
+                item.onclick = () => {
+                    chatInput.value = text;
+                    chatInput.style.height = 'auto';
+                    chatInput.style.height = (chatInput.scrollHeight) + 'px';
+                    historyPanel.style.display = 'none';
+                    historyToggle.classList.remove('active');
+                    chatInput.focus();
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'history-delete';
+                delBtn.title = 'Delete';
+                delBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    promptHistory.splice(index, 1);
+                    savePromptHistory();
+                };
+
+                item.appendChild(mainDiv);
+                item.appendChild(delBtn);
+                historyItemsContainer.appendChild(item);
+            });
+        }
+
+        // Close panels when clicking outside
+        document.addEventListener('click', (e) => {
+            // Check history panel
+            if (historyPanel.style.display === 'flex' && 
+                !historyPanel.contains(e.target) && 
+                !historyToggle.contains(e.target)) {
+                historyPanel.style.display = 'none';
+                historyToggle.classList.remove('active');
+            }
+            // Check settings panel
+            if (settingsPanel.style.display === 'flex' && 
+                !settingsPanel.contains(e.target) && 
+                !settingsToggle.contains(e.target)) {
+                settingsPanel.style.display = 'none';
+                settingsToggle.classList.remove('active');
+            }
+        });
+
+        // Refresh relative timestamps every 30 seconds
+        setInterval(() => {
+            document.querySelectorAll('.history-time[data-ts]').forEach(el => {
+                el.textContent = timeAgo(parseInt(el.dataset.ts, 10));
+            });
+        }, 30000);
+
+        // Toggle Prompt History Panel
+        historyToggle.addEventListener('click', () => {
+            const isVisible = historyPanel.style.display === 'flex';
+            historyPanel.style.display = isVisible ? 'none' : 'flex';
+            historyToggle.classList.toggle('active', !isVisible);
+            if (!isVisible) {
+                settingsPanel.style.display = 'none';
+                settingsToggle.classList.remove('active');
+                renderHistoryPanel();
+            }
+        });
+
+        clearAllHistoryBtn.addEventListener('click', () => {
+            promptHistory = [];
+            savePromptHistory();
+        });
+
+        // Auto-resize textarea
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = (chatInput.scrollHeight) + 'px';
+        });
+
+        // Toggle settings panel
+        settingsToggle.addEventListener('click', () => {
+            const isVisible = settingsPanel.style.display === 'flex';
+            settingsPanel.style.display = isVisible ? 'none' : 'flex';
+            settingsToggle.classList.toggle('active', !isVisible);
+            if (!isVisible) {
+                historyPanel.style.display = 'none';
+                historyToggle.classList.remove('active');
+            }
+        });
+
+        // Save Settings
+        saveSettingsBtn.addEventListener('click', () => {
+            vscode.postMessage({
+                command: 'saveSettings',
+                apiKey: apiKeyInput.value,
+                model: headerModelSelect.value,
+                autoApprove: autoApproveInput.checked
+            });
+            settingsPanel.style.display = 'none';
+            settingsToggle.classList.remove('active');
+        });
+
+        // Change Model dropdown instantly saves it
+        headerModelSelect.addEventListener('change', () => {
+            vscode.postMessage({
+                command: 'saveSettings',
+                apiKey: apiKeyInput.value.startsWith('••') ? undefined : apiKeyInput.value, 
+                model: headerModelSelect.value,
+                autoApprove: autoApproveInput.checked
+            });
+        });
+
+        // Clear Conversation
+        clearBtn.addEventListener('click', () => {
+            chatContainer.innerHTML = '';
+            chatContainer.appendChild(welcomeScreen); 
+            displayedMessages = [];
+            modifiedFilesBar.style.display = 'none';
+            modifiedFilesList.innerHTML = '';
+            vscode.postMessage({ command: 'clearHistory' });
+        });
+
+        // Send message
+        function performSend(overrideText = null) {
+            const text = overrideText !== null ? overrideText : chatInput.value.trim();
+            if (!text || isGenerating) return;
+
+            // Remove welcome screen on first message
+            if (welcomeScreen.parentNode === chatContainer) {
+                chatContainer.removeChild(welcomeScreen);
+            }
+
+            // Remove previous chips if any
+            const oldChips = chatContainer.querySelectorAll('.chips-container');
+            oldChips.forEach(c => c.remove());
+
+            // Add to history
+            addToPromptHistory(text);
+
+            // Add user message to UI
+            appendMessage('user', text);
+
+            // Send to VS Code host
+            vscode.postMessage({
+                command: 'sendMessage',
+                text: text,
+                activeFile: currentActiveFilePath,
+                mode: 'agent' // Always agent
+            });
+
+            if (overrideText === null) {
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+            }
+            setGeneratingState(true);
+        }
+
+        // Quick prompts click handler
+        window.sendQuickPrompt = function(promptText) {
+            if (isGenerating) return;
+            performSend(promptText);
+        };
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                performSend();
+            }
+        });
+
+        sendBtn.addEventListener('click', () => performSend());
+
+        // Helper to copy text to clipboard
+        function copyToClipboard(text, btn) {
+            const rawText = text
+                .replace(/<[^>]+>/g, '')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&');
+            navigator.clipboard.writeText(rawText).then(() => {
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = origHTML;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Helper to append messages
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'message-header-row';
+
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'message-sender';
+            senderDiv.textContent = sender === 'user' ? 'You' : 'ontonim AI';
+            headerRow.appendChild(senderDiv);
+
+            // Action buttons container
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            // Copy button (for both user and assistant)
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'msg-action-btn';
+            copyBtn.title = 'Copy';
+            copyBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+            copyBtn.onclick = () => copyToClipboard(text, copyBtn);
+            actionsDiv.appendChild(copyBtn);
+
+            if (sender === 'user') {
+                // Edit button for user messages
+                const editBtn = document.createElement('button');
+                editBtn.className = 'msg-action-btn';
+                editBtn.title = 'Edit Prompt';
+                editBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit`;
+                const currentMsgIndex = displayedMessages.length;
+                editBtn.onclick = () => startEditMessage(currentMsgIndex);
+                actionsDiv.appendChild(editBtn);
+            } else {
+                // Collapse/Expand toggle for assistant messages
+                const collapseBtn = document.createElement('button');
+                collapseBtn.className = 'collapse-toggle-btn';
+                collapseBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg> Collapse`;
+                collapseBtn.onclick = () => {
+                    const isCollapsed = msgDiv.classList.toggle('collapsed');
+                    collapseBtn.innerHTML = isCollapsed
+                        ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg> Show`
+                        : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg> Collapse`;
+                };
+                actionsDiv.appendChild(collapseBtn);
+
+                // Auto-collapse only if this is NOT the latest (last) message 
+                // We'll collapse older messages when a newer one arrives
+            }
+
+            headerRow.appendChild(actionsDiv);
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            
+            if (sender === 'user') {
+                bubbleDiv.textContent = text;
+            } else {
+                bubbleDiv.innerHTML = parseMarkdown(text);
+                bindCodeBlockButtons(bubbleDiv);
+            }
+
+            msgDiv.appendChild(headerRow);
+            msgDiv.appendChild(bubbleDiv);
+
+            // Auto-collapse the PREVIOUS assistant message when a new one is added
+            if (sender === 'assistant') {
+                const prevAssistantMsgs = chatContainer.querySelectorAll('.message.assistant:not(.collapsed)');
+                prevAssistantMsgs.forEach(prevMsg => {
+                    prevMsg.classList.add('collapsed');
+                    const prevCollapseBtn = prevMsg.querySelector('.collapse-toggle-btn');
+                    if (prevCollapseBtn) {
+                        prevCollapseBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg> Show`;
+                    }
+                });
+            }
+
+            chatContainer.appendChild(msgDiv);
+            
+            // Track in array
+            displayedMessages.push({
+                sender: sender,
+                text: text,
+                node: msgDiv
+            });
+
+            // Add dynamic follow-up chips if it is the assistant's reply
+            if (sender === 'assistant') {
+                addFollowUpChips(text);
+            }
+
+            scrollToBottom();
+        }
+
+        // Start message edit state
+        function startEditMessage(index) {
+            if (isGenerating) return;
+
+            const msgObj = displayedMessages[index];
+            if (!msgObj || msgObj.sender !== 'user') return;
+
+            const bubbleDiv = msgObj.node.querySelector('.message-bubble');
+            const originalText = msgObj.text;
+
+            // Render edit textarea instead of plain text
+            bubbleDiv.innerHTML = `
+                <div class="edit-textarea-container">
+                    <textarea class="edit-textarea" rows="3">${originalText}</textarea>
+                    <div class="edit-actions">
+                        <button class="btn-edit-cancel">Cancel</button>
+                        <button class="btn-edit-save">Save & Resubmit</button>
+                    </div>
+                </div>
+            `;
+
+            const textarea = bubbleDiv.querySelector('.edit-textarea');
+            const cancelBtn = bubbleDiv.querySelector('.btn-edit-cancel');
+            const saveBtn = bubbleDiv.querySelector('.btn-edit-save');
+
+            textarea.focus();
+
+            cancelBtn.onclick = () => {
+                // Restore original bubble content
+                bubbleDiv.textContent = originalText;
+            };
+
+            saveBtn.onclick = () => {
+                const newText = textarea.value.trim();
+                if (!newText) return;
+
+                // 1. Calculate how many user messages are before this one in displayedMessages
+                let userPromptIndex = 0;
+                for (let i = 0; i < index; i++) {
+                    if (displayedMessages[i].sender === 'user') {
+                        userPromptIndex++;
+                    }
+                }
+
+                // 2. Clear all UI messages after this one (index onwards)
+                const messagesToRemove = displayedMessages.slice(index);
+                messagesToRemove.forEach(m => m.node.remove());
+                
+                // Also clear any following chip containers
+                const oldChips = chatContainer.querySelectorAll('.chips-container');
+                oldChips.forEach(c => c.remove());
+
+                // Truncate displayedMessages array
+                displayedMessages = displayedMessages.slice(0, index);
+
+                // 3. Resend the edited message
+                appendMessage('user', newText);
+
+                // 4. Send edit command to extension
+                vscode.postMessage({
+                    command: 'editPrompt',
+                    index: userPromptIndex,
+                    text: newText,
+                    activeFile: currentActiveFilePath
+                });
+
+                setGeneratingState(true);
+            };
+        }
+
+        // Add follow-up chips based on response content
+        function addFollowUpChips(responseText) {
+            const container = document.createElement('div');
+            container.className = 'chips-container';
+
+            let chips = [];
+            if (responseText.toLowerCase().includes('function') || responseText.toLowerCase().includes('class') || responseText.toLowerCase().includes('const')) {
+                chips = [
+                    { label: '🐞 Find Potential Bugs', prompt: 'Analyze the code above and find potential bugs or edge cases.' },
+                    { label: '📝 Write Unit Tests', prompt: 'Generate comprehensive unit tests for the code above.' },
+                    { label: '⚡ Optimize Performance', prompt: 'Refactor the code above to optimize its performance.' }
+                ];
+            } else {
+                chips = [
+                    { label: '🔍 Explain Details', prompt: 'Explain the details of the solution proposed above.' },
+                    { label: '❓ Ask Follow-up', prompt: 'Are there alternative approaches to this problem?' }
+                ];
+            }
+
+            chips.forEach(c => {
+                const button = document.createElement('div');
+                button.className = 'chip';
+                button.textContent = c.label;
+                button.onclick = () => sendQuickPrompt(c.prompt);
+                container.appendChild(button);
+            });
+
+            chatContainer.appendChild(container);
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function setGeneratingState(generating) {
+            isGenerating = generating;
+            sendBtn.disabled = generating;
+            thinkingIndicator.style.display = generating ? 'flex' : 'none';
+            if (generating) {
+                scrollToBottom();
+            } else {
+                // Auto-collapse the last assistant message when generation finishes
+                const allAssistantMsgs = chatContainer.querySelectorAll('.message.assistant:not(.collapsed)');
+                if (allAssistantMsgs.length > 0) {
+                    const lastMsg = allAssistantMsgs[allAssistantMsgs.length - 1];
+                    lastMsg.classList.add('collapsed');
+                    const collapseBtn = lastMsg.querySelector('.collapse-toggle-btn');
+                    if (collapseBtn) {
+                        collapseBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg> Show`;
+                    }
+                }
+            }
+        }
+
+        // Custom Simple Markdown Parser for UI
+        function parseMarkdown(text) {
+            if (!text) return '';
+            
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // Parse Code Blocks
+            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+            html = html.replace(codeBlockRegex, (match, lang, code) => {
+                const language = lang || 'code';
+                return `<pre><div class="code-header">
+                            <span>${language}</span>
+                            <div class="code-actions">
+                                <button class="code-action-btn copy" title="Copy to clipboard">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy
+                                </button>
+                                <button class="code-action-btn insert" title="Insert code at active cursor">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                                    Insert
+                                </button>
+                                <button class="code-action-btn newfile" title="Open in new untitled file">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    New File
+                                </button>
+                            </div>
+                        </div><code>${code}</code></pre>`;
+            });
+
+            // Parse Inline Code
+            html = html.replace(/`([^`]+)`/g, '<code style="background-color: rgba(255,255,255,0.07); padding: 1.5px 3.5px; border-radius: 4px; font-weight: 500;">$1</code>');
+
+            // Parse Headings
+            html = html.replace(/^### (.*$)/gim, '<h4 style="margin: 8px 0 4px 0;">$1</h4>');
+            html = html.replace(/^## (.*$)/gim, '<h3 style="margin: 12px 0 6px 0; color: #a855f7;">$1</h3>');
+            html = html.replace(/^# (.*$)/gim, '<h2 style="margin: 16px 0 8px 0; color: #8b5cf6;">$1</h2>');
+
+            // Parse Bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // Parse Line breaks / paragraphs
+            html = html.replace(/\n/g, '<br>');
+
+            return html;
+        }
+
+        // Bind copy, insert and open-newfile buttons for code blocks
+        function bindCodeBlockButtons(parent) {
+            const preBlocks = parent.querySelectorAll('pre');
+            preBlocks.forEach((pre) => {
+                const codeBlock = pre.querySelector('code');
+                const copyBtn = pre.querySelector('.code-action-btn.copy');
+                const insertBtn = pre.querySelector('.code-action-btn.insert');
+                const newFileBtn = pre.querySelector('.code-action-btn.newfile');
+                
+                if (!codeBlock) return;
+
+                const getRawCode = () => {
+                    return codeBlock.innerHTML
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&amp;/g, '&')
+                        .replace(/<br>/g, '\n');
+                };
+
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(getRawCode()).then(() => {
+                            const originalText = copyBtn.innerHTML;
+                            copyBtn.innerHTML = 'Copied!';
+                            setTimeout(() => { copyBtn.innerHTML = originalText; }, 2000);
+                        });
+                    });
+                }
+
+                if (insertBtn) {
+                    insertBtn.addEventListener('click', () => {
+                        vscode.postMessage({
+                            command: 'insertCode',
+                            text: getRawCode()
+                        });
+                    });
+                }
+
+                if (newFileBtn) {
+                    newFileBtn.addEventListener('click', () => {
+                        vscode.postMessage({
+                            command: 'newUntitledFile',
+                            text: getRawCode()
+                        });
+                    });
+                }
+            });
+        }
+
+        // Handle tool calls in UI
+        function showToolApproval(toolCalls) {
+            const containerDiv = document.createElement('div');
+            containerDiv.className = 'tool-request-container';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'tool-request-header';
+            headerDiv.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                                   <span>Ontonim AI wants to execute actions:</span>`;
+            containerDiv.appendChild(headerDiv);
+
+            // Collapsible header (hidden initially)
+            const collapseHeader = document.createElement('div');
+            collapseHeader.className = 'tool-collapse-header';
+            collapseHeader.style.display = 'none';
+            collapseHeader.innerHTML = `
+                <div class="tool-collapse-status">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Actions completed successfully</span>
+                </div>
+                <span class="tool-collapse-icon">►</span>
+            `;
+            collapseHeader.onclick = () => {
+                containerDiv.classList.toggle('collapsed');
+                const icon = collapseHeader.querySelector('.tool-collapse-icon');
+                icon.textContent = containerDiv.classList.contains('collapsed') ? '►' : '▼';
+            };
+            containerDiv.appendChild(collapseHeader);
+
+            const listDiv = document.createElement('div');
+            listDiv.className = 'tool-list';
+            
+            toolCalls.forEach((tool, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'tool-item';
+                itemDiv.id = `tool-item-${index}`;
+
+                let badgeType = 'read';
+                let details = '';
+                
+                if (tool.name === 'write_file' || tool.name === 'make_edit') {
+                    badgeType = 'write';
+                }
+
+                if (tool.name === 'list_dir') {
+                    details = `List files in "${tool.args.path || '.'}"`;
+                } else if (tool.name === 'read_file') {
+                    details = `Read file "${tool.args.path}"`;
+                } else if (tool.name === 'write_file') {
+                    details = `Create/Write file "${tool.args.path}"`;
+                } else if (tool.name === 'make_edit') {
+                    details = `Edit file "${tool.args.path}"`;
+                } else if (tool.name === 'search_grep') {
+                    details = `Grep search for "${tool.args.query}"`;
+                }
+
+                itemDiv.innerHTML = `
+                    <div class="tool-info">
+                        <span class="tool-badge ${badgeType}">${tool.name}</span>
+                        <span>${details}</span>
+                    </div>
+                    <div class="tool-status-icon" id="tool-status-${index}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clock"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                `;
+                listDiv.appendChild(itemDiv);
+            });
+            containerDiv.appendChild(listDiv);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'tool-actions';
+            
+            const approveBtn = document.createElement('button');
+            approveBtn.className = 'btn btn-approve';
+            approveBtn.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Approve & Run
+            `;
+            approveBtn.onclick = () => {
+                approveBtn.disabled = true;
+                rejectBtn.disabled = true;
+                vscode.postMessage({ command: 'approveTools' });
+            };
+
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'btn btn-reject';
+            rejectBtn.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                Cancel
+            `;
+            rejectBtn.onclick = () => {
+                approveBtn.disabled = true;
+                rejectBtn.disabled = true;
+                containerDiv.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                containerDiv.style.background = 'rgba(239, 68, 68, 0.05)';
+                headerDiv.innerHTML = '<span style="color:#ef4444;">Actions rejected by user.</span>';
+                actionsDiv.remove();
+                vscode.postMessage({ command: 'rejectTools' });
+            };
+
+            actionsDiv.appendChild(approveBtn);
+            actionsDiv.appendChild(rejectBtn);
+            containerDiv.appendChild(actionsDiv);
+            
+            chatContainer.appendChild(containerDiv);
+            scrollToBottom();
+
+            // Initialize global state for the active card
+            currentToolCard = {
+                element: containerDiv,
+                tools: toolCalls,
+                toolsCount: toolCalls.length,
+                completedCount: 0,
+                editedFiles: new Set()
+            };
+        }
+
+        // Finalize tool execution and collapse the card
+        function finalizeToolCard(card) {
+            const container = card.element;
+            const headerDiv = container.querySelector('.tool-request-header');
+            const collapseHeader = container.querySelector('.tool-collapse-header');
+            const actionsDiv = container.querySelector('.tool-actions');
+            
+            if (actionsDiv) {
+                actionsDiv.remove();
+            }
+            
+            if (headerDiv) headerDiv.style.display = 'none';
+            if (collapseHeader) {
+                collapseHeader.style.display = 'flex';
+            }
+            
+            container.classList.add('collapsed');
+
+            // Render modified files at the bottom of the card
+            if (card.editedFiles.size > 0) {
+                const filesDiv = document.createElement('div');
+                filesDiv.className = 'card-modified-files';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'card-modified-files-title';
+                titleDiv.textContent = 'Edited Files:';
+                filesDiv.appendChild(titleDiv);
+                
+                const listDiv = document.createElement('div');
+                listDiv.className = 'card-modified-files-list';
+                
+                card.editedFiles.forEach(file => {
+                    const chip = document.createElement('div');
+                    chip.className = 'modified-file-chip';
+                    chip.innerHTML = `
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>${file}</span>
+                    `;
+                    chip.onclick = () => {
+                        vscode.postMessage({
+                            command: 'openFile',
+                            filePath: file
+                        });
+                    };
+                    listDiv.appendChild(chip);
+                });
+                
+                filesDiv.appendChild(listDiv);
+                container.appendChild(filesDiv);
+            }
+        }
+
+        // Render Session Modified Files list
+        function updateModifiedFiles(files) {
+            if (!files || files.length === 0) {
+                modifiedFilesBar.style.display = 'none';
+                modifiedFilesList.innerHTML = '';
+                return;
+            }
+
+            modifiedFilesList.innerHTML = '';
+            files.forEach(file => {
+                const chip = document.createElement('div');
+                chip.className = 'modified-file-chip';
+                chip.innerHTML = `
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span>${file}</span>
+                `;
+                chip.onclick = () => {
+                    vscode.postMessage({
+                        command: 'openFile',
+                        filePath: file
+                    });
+                };
+                modifiedFilesList.appendChild(chip);
+            });
+
+            modifiedFilesBar.style.display = 'flex';
+        }
+
+        // Handle Messages from Extension Host
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.command) {
+                case 'addMessage':
+                    if (welcomeScreen.parentNode === chatContainer) {
+                        chatContainer.removeChild(welcomeScreen);
+                    }
+                    appendMessage(message.sender, message.text);
+                    setGeneratingState(false);
+                    break;
+                
+                case 'setSettings':
+                    apiKeyInput.value = message.apiKey || '';
+                    headerModelSelect.value = message.model || 'google/gemini-2.5-flash';
+                    autoApproveInput.checked = !!message.autoApprove;
+                    break;
+
+                case 'requireToolApproval':
+                    setGeneratingState(false);
+                    showToolApproval(message.toolCalls);
+                    break;
+
+                case 'setModifiedFiles':
+                    updateModifiedFiles(message.files);
+                    break;
+
+                case 'toolProgress':
+                    const statusIcon = document.getElementById(`tool-status-${message.index}`);
+                    const itemDiv = document.getElementById(`tool-item-${message.index}`);
+                    if (statusIcon) {
+                        if (message.status === 'running') {
+                            statusIcon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>`;
+                            itemDiv.style.borderColor = 'var(--accent-primary)';
+                        } else if (message.status === 'success' || message.status === 'error') {
+                            statusIcon.innerHTML = message.status === 'success'
+                                ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`
+                                : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+                            itemDiv.style.borderColor = message.status === 'success' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+                            itemDiv.style.background = message.status === 'success' ? 'rgba(34, 197, 94, 0.03)' : 'rgba(239, 68, 68, 0.03)';
+
+                            if (message.status === 'success' && currentToolCard) {
+                                const tool = currentToolCard.tools[message.index];
+                                if (tool && (tool.name === 'write_file' || tool.name === 'make_edit')) {
+                                    currentToolCard.editedFiles.add(tool.args.path);
+                                }
+                            }
+
+                            if (currentToolCard) {
+                                currentToolCard.completedCount++;
+                                if (currentToolCard.completedCount === currentToolCard.toolsCount) {
+                                    finalizeToolCard(currentToolCard);
+                                }
+                            }
+                        }
+                    }
+                    break;
+
+                case 'generationStarted':
+                    setGeneratingState(true);
+                    break;
+                
+                case 'generationFinished':
+                    setGeneratingState(false);
+                    break;
+
+                case 'setActiveFile':
+                    currentActiveFilePath = message.filePath;
+                    if (currentActiveFilePath) {
+                        activeFileName.textContent = message.fileName;
+                        activeFileBadge.style.display = 'flex';
+                    } else {
+                        activeFileBadge.style.display = 'none';
+                    }
+                    break;
+            }
+        });
+
+        // ===== THEME SYSTEM =====
+        const THEME_KEY = 'ontonim_ai_theme';
+
+        function applyTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            // Update swatch active state
+            document.querySelectorAll('.theme-swatch').forEach(s => {
+                s.classList.toggle('active', s.dataset.theme === themeName);
+            });
+            try { localStorage.setItem(THEME_KEY, themeName); } catch(e) {}
+        }
+
+        function loadTheme() {
+            try {
+                const saved = localStorage.getItem(THEME_KEY) || 'midnight';
+                applyTheme(saved);
+            } catch(e) { applyTheme('midnight'); }
+        }
+
+        // Bind swatch clicks
+        document.querySelectorAll('.theme-swatch').forEach(btn => {
+            btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+        });
+
+        // Apply saved theme immediately
+        loadTheme();
+
+        // Request settings on load
+        vscode.postMessage({ command: 'loadSettings' });
+    </script>
+</body>
+</html>
