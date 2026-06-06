@@ -124,59 +124,103 @@ function parseToolCalls(text) {
 }
 
 /**
- * Call OpenRouter API with message history.
- * Supports streaming or standard response. We will use standard response for simpler orchestration
- * and robust handling of tools.
+ * Call the selected LLM API (OpenRouter or OpenAI) with message history.
+ * @param {string} apiProvider - 'openrouter' or 'openai'
  * @param {string} apiKey 
  * @param {string} model 
  * @param {Array<Object>} messages 
  * @param {string} mode - 'agent' or 'chat'
  * @returns {Promise<string>} AI content response
  */
-async function callOpenRouter(apiKey, model, messages, mode = 'agent') {
+async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
     if (!apiKey) {
-        throw new Error("OpenRouter API key is missing. Please set it in Ontonim AI settings.");
+        let providerName = 'OpenRouter';
+        if (apiProvider === 'openai') providerName = 'OpenAI';
+        else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+        throw new Error(`${providerName} API key is missing. Please set it in Ontonim AI settings.`);
     }
 
     const systemPrompt = mode === 'chat' ? SYSTEM_PROMPT_CHAT : SYSTEM_PROMPT;
 
+    // Determine default model and endpoint details
+    let defaultModel = "google/gemini-2.5-flash";
+    let endpoint = "https://openrouter.ai/api/v1/chat/completions";
+    let headers = {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+    };
+
+    if (apiProvider === 'openai') {
+        defaultModel = "gpt-4o";
+        endpoint = "https://api.openai.com/v1/chat/completions";
+    } else if (apiProvider === 'betopia') {
+        defaultModel = "gpt-5.4-mini";
+        endpoint = "https://platform-backend.betopia.ai/v1/chat/completions";
+    } else {
+        // OpenRouter specific headers
+        headers["HTTP-Referer"] = "https://github.com/ontonim-ai/vscode-extension";
+        headers["X-Title"] = "Ontonim AI Extension";
+    }
+
     const payload = {
-        model: model || "google/gemini-2.5-flash",
+        model: model || defaultModel,
         messages: [
             { role: "system", content: systemPrompt },
             ...messages
         ],
-        max_tokens: 4096,
         temperature: 0.2 // Lower temperature for more reliable coding tasks
     };
 
+    if (apiProvider === 'betopia') {
+        payload.max_completion_tokens = 4096;
+    } else {
+        payload.max_tokens = 4096;
+    }
+
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const response = await fetch(endpoint, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/ontonim-ai/vscode-extension", // Required by OpenRouter
-                "X-Title": "Ontonim AI Extension" // Required by OpenRouter
-            },
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
             const errBody = await response.text();
-            throw new Error(`OpenRouter API error: ${response.status} - ${errBody}`);
+            let providerName = 'OpenRouter';
+            if (apiProvider === 'openai') providerName = 'OpenAI';
+            else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+            throw new Error(`${providerName} API error: ${response.status} - ${errBody}`);
         }
 
         const data = await response.json();
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-            return data.choices[0].message.content;
+        if (apiProvider === 'betopia') {
+            if (data.content) {
+                return data.content;
+            } else {
+                throw new Error(`Unexpected Betopia AI response format: ${JSON.stringify(data)}`);
+            }
         } else {
-            throw new Error(`Unexpected OpenRouter response format: ${JSON.stringify(data)}`);
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content;
+            } else {
+                const providerName = apiProvider === 'openai' ? 'OpenAI' : 'OpenRouter';
+                throw new Error(`Unexpected ${providerName} response format: ${JSON.stringify(data)}`);
+            }
         }
     } catch (error) {
-        console.error("OpenRouter API call failed:", error);
+        let providerName = 'OpenRouter';
+        if (apiProvider === 'openai') providerName = 'OpenAI';
+        else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+        console.error(`${providerName} API call failed:`, error);
         throw error;
     }
+}
+
+/**
+ * Call OpenRouter API with message history (for backwards compatibility).
+ */
+async function callOpenRouter(apiKey, model, messages, mode = 'agent') {
+    return callLLM('openrouter', apiKey, model, messages, mode);
 }
 
 /**
@@ -229,6 +273,7 @@ async function executeTool(name, args) {
 }
 
 module.exports = {
+    callLLM,
     callOpenRouter,
     parseToolCalls,
     executeTool

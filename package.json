@@ -41,11 +41,11 @@
       },
       {
         "command": "ontonim-ai.setApiKey",
-        "title": "Ontonim AI: Set OpenRouter API Key"
+        "title": "Ontonim AI: Set API Key"
       },
       {
         "command": "ontonim-ai.clearApiKey",
-        "title": "Ontonim AI: Clear OpenRouter API Key"
+        "title": "Ontonim AI: Clear API Key"
       },
       {
         "command": "ontonim-ai.explainAndFix",

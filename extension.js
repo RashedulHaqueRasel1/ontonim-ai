@@ -26,14 +26,50 @@ function activate(context) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('ontonim-ai.setApiKey', async () => {
+            const providerSelection = await vscode.window.showQuickPick(
+                [
+                    { label: "OpenRouter", description: "Use models like Gemini, Claude, Llama, DeepSeek via OpenRouter", id: "openrouter" },
+                    { label: "OpenAI (GPT)", description: "Use OpenAI models (GPT-4o, GPT-4o-mini, etc.) directly", id: "openai" },
+                    { label: "Betopia AI", description: "Use Betopia AI models (gpt-5.4-mini, etc.) directly", id: "betopia" }
+                ],
+                { placeHolder: "Select API Provider" }
+            );
+
+            if (!providerSelection) return;
+
+            let keyPrompt = "Enter your OpenRouter API Key";
+            let keyPlaceholder = "sk-or-v1-...";
+            let secretKey = 'openrouter_api_key';
+            let defaultModel = 'google/gemini-2.5-flash';
+
+            if (providerSelection.id === 'openai') {
+                keyPrompt = "Enter your OpenAI API Key";
+                keyPlaceholder = "sk-proj-...";
+                secretKey = 'openai_api_key';
+                defaultModel = 'gpt-4o';
+            } else if (providerSelection.id === 'betopia') {
+                keyPrompt = "Enter your Betopia API Key";
+                keyPlaceholder = "Enter Betopia API Key";
+                secretKey = 'betopia_api_key';
+                defaultModel = 'gpt-5.4-mini';
+            }
+
             const key = await vscode.window.showInputBox({
-                prompt: "Enter your OpenRouter API Key",
-                placeHolder: "sk-or-v1-...",
+                prompt: keyPrompt,
+                placeHolder: keyPlaceholder,
                 password: true
             });
+
             if (key) {
-                await context.secrets.store('openrouter_api_key', key);
-                vscode.window.showInformationMessage("Ontonim AI OpenRouter API Key saved successfully.");
+                const trimmedKey = key.trim();
+                if (providerSelection.id === 'openai' && trimmedKey.startsWith('sk-ant-')) {
+                    vscode.window.showWarningMessage("Ontonim AI Warning: The key you entered starts with 'sk-ant-', which is typically an Anthropic Claude key. OpenAI keys usually start with 'sk-proj-'.");
+                }
+                await context.secrets.store(secretKey, trimmedKey);
+                await context.globalState.update('api_provider', providerSelection.id);
+                await context.globalState.update('selected_model', defaultModel);
+
+                vscode.window.showInformationMessage(`Ontonim AI ${providerSelection.label} API Key saved successfully.`);
                 provider.sendSettingsToWebview();
             }
         })
@@ -41,8 +77,29 @@ function activate(context) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('ontonim-ai.clearApiKey', async () => {
-            await context.secrets.delete('openrouter_api_key');
-            vscode.window.showInformationMessage("Ontonim AI OpenRouter API Key cleared.");
+            const clearSelection = await vscode.window.showQuickPick(
+                [
+                    { label: "OpenRouter API Key", id: "openrouter" },
+                    { label: "OpenAI API Key", id: "openai" },
+                    { label: "Betopia API Key", id: "betopia" },
+                    { label: "All API Keys", id: "all" }
+                ],
+                { placeHolder: "Select API Key to Clear" }
+            );
+
+            if (!clearSelection) return;
+
+            if (clearSelection.id === 'openrouter' || clearSelection.id === 'all') {
+                await context.secrets.delete('openrouter_api_key');
+            }
+            if (clearSelection.id === 'openai' || clearSelection.id === 'all') {
+                await context.secrets.delete('openai_api_key');
+            }
+            if (clearSelection.id === 'betopia' || clearSelection.id === 'all') {
+                await context.secrets.delete('betopia_api_key');
+            }
+
+            vscode.window.showInformationMessage(`Ontonim AI API Key(s) cleared.`);
             provider.sendSettingsToWebview();
         })
     );
@@ -165,12 +222,34 @@ class OntonimAIChatProvider {
                     break;
 
                 case 'saveSettings':
-                    if (data.apiKey && !data.apiKey.includes('•') && data.apiKey.trim() !== '') {
-                        await this._context.secrets.store('openrouter_api_key', data.apiKey);
+                    let updatedKeys = [];
+                    if (data.openRouterKey && !data.openRouterKey.includes('•') && data.openRouterKey.trim() !== '') {
+                        const trimmed = data.openRouterKey.trim();
+                        await this._context.secrets.store('openrouter_api_key', trimmed);
+                        updatedKeys.push("OpenRouter");
                     }
+                    if (data.openAiKey && !data.openAiKey.includes('•') && data.openAiKey.trim() !== '') {
+                        const trimmed = data.openAiKey.trim();
+                        if (trimmed.startsWith('sk-ant-')) {
+                            vscode.window.showWarningMessage("Ontonim AI Warning: The key you entered for OpenAI starts with 'sk-ant-', which is typically an Anthropic Claude key. OpenAI keys usually start with 'sk-proj-'.");
+                        }
+                        await this._context.secrets.store('openai_api_key', trimmed);
+                        updatedKeys.push("OpenAI");
+                    }
+                    if (data.betopiaKey && !data.betopiaKey.includes('•') && data.betopiaKey.trim() !== '') {
+                        const trimmed = data.betopiaKey.trim();
+                        await this._context.secrets.store('betopia_api_key', trimmed);
+                        updatedKeys.push("Betopia AI");
+                    }
+                    await this._context.globalState.update('api_provider', data.apiProvider);
                     await this._context.globalState.update('selected_model', data.model);
                     await this._context.globalState.update('auto_approve_readonly', data.autoApprove);
-                    vscode.window.showInformationMessage("Ontonim AI Configuration saved.");
+                    
+                    if (updatedKeys.length > 0) {
+                        vscode.window.showInformationMessage(`Ontonim AI: Saved settings and updated API Key for: ${updatedKeys.join(', ')}.`);
+                    } else {
+                        vscode.window.showInformationMessage("Ontonim AI: Configuration saved.");
+                    }
                     await this.sendSettingsToWebview();
                     break;
 
@@ -240,15 +319,48 @@ class OntonimAIChatProvider {
         });
     }
 
+    async getProviderConfig() {
+        const apiProvider = this._context.globalState.get('api_provider') || 'openrouter';
+        let providerKey = 'openrouter_api_key';
+        let defaultModel = 'google/gemini-2.5-flash';
+        let providerName = 'OpenRouter';
+
+        if (apiProvider === 'openai') {
+            providerKey = 'openai_api_key';
+            defaultModel = 'gpt-4o';
+            providerName = 'OpenAI';
+        } else if (apiProvider === 'betopia') {
+            providerKey = 'betopia_api_key';
+            defaultModel = 'gpt-5.4-mini';
+            providerName = 'Betopia AI';
+        }
+
+        const apiKey = await this._context.secrets.get(providerKey);
+        const model = this._context.globalState.get('selected_model') || defaultModel;
+
+        return { apiProvider, apiKey, model, providerName };
+    }
+
     async sendSettingsToWebview() {
         if (!this._view) return;
-        const apiKey = await this._context.secrets.get('openrouter_api_key');
-        const model = this._context.globalState.get('selected_model') || 'google/gemini-2.5-flash';
+        const apiProvider = this._context.globalState.get('api_provider') || 'openrouter';
+        const openRouterKey = await this._context.secrets.get('openrouter_api_key');
+        const openAiKey = await this._context.secrets.get('openai_api_key');
+        const betopiaKey = await this._context.secrets.get('betopia_api_key');
+        
+        let defaultModel = 'google/gemini-2.5-flash';
+        if (apiProvider === 'openai') defaultModel = 'gpt-4o';
+        else if (apiProvider === 'betopia') defaultModel = 'gpt-5.4-mini';
+
+        const model = this._context.globalState.get('selected_model') || defaultModel;
         const autoApprove = !!this._context.globalState.get('auto_approve_readonly');
 
         this._view.webview.postMessage({
             command: 'setSettings',
-            apiKey: apiKey ? '••••••••••••••••••••' : '', // Mask key for display
+            apiProvider,
+            openRouterKey: openRouterKey ? '••••••••••••••••••••' : '',
+            openAiKey: openAiKey ? '••••••••••••••••••••' : '',
+            betopiaKey: betopiaKey ? '••••••••••••••••••••' : '',
             model,
             autoApprove
         });
@@ -286,17 +398,16 @@ class OntonimAIChatProvider {
 
         this._currentMode = mode;
 
-        const apiKey = await this._context.secrets.get('openrouter_api_key');
+        const { apiProvider, apiKey, model, providerName } = await this.getProviderConfig();
+
         if (!apiKey) {
             this._view.webview.postMessage({
                 command: 'addMessage',
                 sender: 'assistant',
-                text: "⚠️ **API Key Required**: Please configure your OpenRouter API Key in the settings panel (gear icon) before sending prompts."
+                text: `⚠️ **API Key Required**: Please configure your ${providerName} API Key in the settings panel (gear icon) before sending prompts.`
             });
             return;
         }
-
-        const model = this._context.globalState.get('selected_model') || 'google/gemini-2.5-flash';
 
         // Prepare context-enhanced message content
         let fullUserMessage = text;
@@ -313,10 +424,10 @@ class OntonimAIChatProvider {
         this._history.push({ role: 'user', content: fullUserMessage });
 
         // Run the agent loop
-        await this.runAgentIteration(apiKey, model);
+        await this.runAgentIteration(apiProvider, apiKey, model);
     }
 
-    async runAgentIteration(apiKey, model, maxTurns = 8) {
+    async runAgentIteration(apiProvider, apiKey, model, maxTurns = 8) {
         if (!this._view) return;
 
         let turn = 0;
@@ -327,8 +438,8 @@ class OntonimAIChatProvider {
         while (continueLoop && turn < maxTurns) {
             turn++;
             try {
-                // Call OpenRouter
-                const response = await agent.callOpenRouter(apiKey, model, this._history, this._currentMode || 'agent');
+                // Call LLM
+                const response = await agent.callLLM(apiProvider, apiKey, model, this._history, this._currentMode || 'agent');
                 
                 // Parse proposed tool calls
                 const toolCalls = this._currentMode === 'chat' ? [] : agent.parseToolCalls(response);
@@ -430,10 +541,9 @@ class OntonimAIChatProvider {
         this._history.push({ role: 'user', content: toolResultsMessage });
 
         // Query AI again with the results
-        const apiKey = await this._context.secrets.get('openrouter_api_key');
-        const model = this._context.globalState.get('selected_model') || 'google/gemini-2.5-flash';
+        const { apiProvider, apiKey, model } = await this.getProviderConfig();
         
-        await this.runAgentIteration(apiKey, model);
+        await this.runAgentIteration(apiProvider, apiKey, model);
     }
 
     handleToolRejection() {
@@ -490,10 +600,9 @@ class OntonimAIChatProvider {
         this._history.push({ role: 'user', content: fullUserMessage });
 
         // Retrieve config and re-run agent loop
-        const apiKey = await this._context.secrets.get('openrouter_api_key');
-        const model = this._context.globalState.get('selected_model') || 'google/gemini-2.5-flash';
+        const { apiProvider, apiKey, model } = await this.getProviderConfig();
 
-        await this.runAgentIteration(apiKey, model);
+        await this.runAgentIteration(apiProvider, apiKey, model);
     }
 
     sendModifiedFilesToWebview() {

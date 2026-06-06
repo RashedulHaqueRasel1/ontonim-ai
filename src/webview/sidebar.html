@@ -1246,8 +1246,28 @@
     <!-- Settings Panel (For API Key & preferences) -->
     <div id="settings-panel" class="settings-panel">
         <div class="settings-group">
-            <label for="api-key">OpenRouter API Key</label>
-            <input type="password" id="api-key" class="settings-input" placeholder="sk-or-v1-...">
+            <label for="api-provider">API Provider</label>
+            <div class="model-picker-container" style="width: 100%; position: relative;">
+                <select id="api-provider" class="settings-input" style="appearance: none; -webkit-appearance: none; padding-right: 24px; width: 100%; cursor: pointer;">
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                    <option value="betopia">Betopia AI</option>
+                </select>
+                <span class="select-arrow" style="top: 50%; transform: translateY(-50%); right: 12px; font-size: 8px; position: absolute; pointer-events: none;">▼</span>
+            </div>
+        </div>
+        <div class="settings-group" id="openrouter-key-group">
+            <label for="openrouter-api-key">OpenRouter API Key</label>
+            <input type="password" id="openrouter-api-key" class="settings-input" placeholder="sk-or-v1-...">
+        </div>
+        <div class="settings-group" id="openai-key-group" style="display: none;">
+            <label for="openai-api-key">OpenAI API Key</label>
+            <input type="password" id="openai-api-key" class="settings-input" placeholder="sk-proj-...">
+            <span id="openai-key-warn" style="color: #f87171; font-size: 10px; margin-top: 4px; display: none; font-weight: 500;">⚠️ This looks like an Anthropic key (starts with sk-ant-). OpenAI keys start with sk-proj-.</span>
+        </div>
+        <div class="settings-group" id="betopia-key-group" style="display: none;">
+            <label for="betopia-api-key">Betopia API Key</label>
+            <input type="password" id="betopia-api-key" class="settings-input" placeholder="Enter Betopia API Key">
         </div>
         <div class="theme-section">
             <label>Chat Theme</label>
@@ -1343,7 +1363,15 @@
         const historyPanel = document.getElementById('history-panel');
         const historyItemsContainer = document.getElementById('history-items');
         const clearAllHistoryBtn = document.getElementById('clear-all-history');
-        const apiKeyInput = document.getElementById('api-key');
+        
+        const apiProviderSelect = document.getElementById('api-provider');
+        const openRouterKeyInput = document.getElementById('openrouter-api-key');
+        const openAiKeyInput = document.getElementById('openai-api-key');
+        const betopiaKeyInput = document.getElementById('betopia-api-key');
+        const openRouterKeyGroup = document.getElementById('openrouter-key-group');
+        const openAiKeyGroup = document.getElementById('openai-key-group');
+        const betopiaKeyGroup = document.getElementById('betopia-key-group');
+        
         const headerModelSelect = document.getElementById('header-model-select');
         const autoApproveInput = document.getElementById('auto-approve');
         const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -1523,11 +1551,82 @@
             }
         });
 
+        const modelsByProvider = {
+            openrouter: [
+                { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+                { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+                { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+                { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
+                { value: 'deepseek/deepseek-chat', label: 'DeepSeek V3 (Chat)' }
+            ],
+            openai: [
+                { value: 'gpt-4o', label: 'GPT-4o' },
+                { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+                { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+                { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+            ],
+            betopia: [
+                { value: 'gpt-5.4-mini', label: 'gpt-5.4-mini' },
+                { value: 'gpt-5.4-pro', label: 'gpt-5.4-pro' }
+            ]
+        };
+
+        function updateModelOptions(provider, selectedValue = null) {
+            const models = modelsByProvider[provider] || modelsByProvider.openrouter;
+            headerModelSelect.innerHTML = '';
+            
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.value;
+                opt.textContent = m.label;
+                headerModelSelect.appendChild(opt);
+            });
+
+            if (selectedValue && models.some(m => m.value === selectedValue)) {
+                headerModelSelect.value = selectedValue;
+            } else {
+                headerModelSelect.value = models[0].value;
+            }
+        }
+
+        // Toggle key inputs visibility based on selected provider
+        apiProviderSelect.addEventListener('change', () => {
+            const provider = apiProviderSelect.value;
+            if (provider === 'openai') {
+                openRouterKeyGroup.style.display = 'none';
+                openAiKeyGroup.style.display = 'flex';
+                betopiaKeyGroup.style.display = 'none';
+            } else if (provider === 'betopia') {
+                openRouterKeyGroup.style.display = 'none';
+                openAiKeyGroup.style.display = 'none';
+                betopiaKeyGroup.style.display = 'flex';
+            } else {
+                openRouterKeyGroup.style.display = 'flex';
+                openAiKeyGroup.style.display = 'none';
+                betopiaKeyGroup.style.display = 'none';
+            }
+            updateModelOptions(provider);
+            
+            // Save provider and default model to host
+            vscode.postMessage({
+                command: 'saveSettings',
+                apiProvider: apiProviderSelect.value,
+                openRouterKey: openRouterKeyInput.value.startsWith('••') ? undefined : openRouterKeyInput.value,
+                openAiKey: openAiKeyInput.value.startsWith('••') ? undefined : openAiKeyInput.value,
+                betopiaKey: betopiaKeyInput.value.startsWith('••') ? undefined : betopiaKeyInput.value,
+                model: headerModelSelect.value,
+                autoApprove: autoApproveInput.checked
+            });
+        });
+
         // Save Settings
         saveSettingsBtn.addEventListener('click', () => {
             vscode.postMessage({
                 command: 'saveSettings',
-                apiKey: apiKeyInput.value,
+                apiProvider: apiProviderSelect.value,
+                openRouterKey: openRouterKeyInput.value,
+                openAiKey: openAiKeyInput.value,
+                betopiaKey: betopiaKeyInput.value,
                 model: headerModelSelect.value,
                 autoApprove: autoApproveInput.checked
             });
@@ -1535,11 +1634,26 @@
             settingsToggle.classList.remove('active');
         });
 
+        function validateKeys() {
+            const openAiVal = openAiKeyInput.value.trim();
+            const openAiWarn = document.getElementById('openai-key-warn');
+            if (openAiVal.startsWith('sk-ant-')) {
+                openAiWarn.style.display = 'block';
+            } else {
+                openAiWarn.style.display = 'none';
+            }
+        }
+
+        openAiKeyInput.addEventListener('input', validateKeys);
+
         // Change Model dropdown instantly saves it
         headerModelSelect.addEventListener('change', () => {
             vscode.postMessage({
                 command: 'saveSettings',
-                apiKey: apiKeyInput.value.startsWith('••') ? undefined : apiKeyInput.value, 
+                apiProvider: apiProviderSelect.value,
+                openRouterKey: openRouterKeyInput.value.startsWith('••') ? undefined : openRouterKeyInput.value,
+                openAiKey: openAiKeyInput.value.startsWith('••') ? undefined : openAiKeyInput.value,
+                betopiaKey: betopiaKeyInput.value.startsWith('••') ? undefined : betopiaKeyInput.value,
                 model: headerModelSelect.value,
                 autoApprove: autoApproveInput.checked
             });
@@ -2150,9 +2264,30 @@
                     break;
                 
                 case 'setSettings':
-                    apiKeyInput.value = message.apiKey || '';
-                    headerModelSelect.value = message.model || 'google/gemini-2.5-flash';
+                    const provider = message.apiProvider || 'openrouter';
+                    apiProviderSelect.value = provider;
+                    
+                    if (provider === 'openai') {
+                        openRouterKeyGroup.style.display = 'none';
+                        openAiKeyGroup.style.display = 'flex';
+                        betopiaKeyGroup.style.display = 'none';
+                    } else if (provider === 'betopia') {
+                        openRouterKeyGroup.style.display = 'none';
+                        openAiKeyGroup.style.display = 'none';
+                        betopiaKeyGroup.style.display = 'flex';
+                    } else {
+                        openRouterKeyGroup.style.display = 'flex';
+                        openAiKeyGroup.style.display = 'none';
+                        betopiaKeyGroup.style.display = 'none';
+                    }
+                    
+                    openRouterKeyInput.value = message.openRouterKey || '';
+                    openAiKeyInput.value = message.openAiKey || '';
+                    betopiaKeyInput.value = message.betopiaKey || '';
+                    
+                    updateModelOptions(provider, message.model);
                     autoApproveInput.checked = !!message.autoApprove;
+                    validateKeys();
                     break;
 
                 case 'requireToolApproval':
