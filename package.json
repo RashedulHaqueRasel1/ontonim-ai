@@ -3,7 +3,16 @@
   "displayName": "Ontonim AI",
   "description": "An agentic AI coding assistant that can read, write, edit, and search files inside your workspace.",
   "version": "0.1.0",
-  "publisher": "ontonim-ai",
+  "publisher": "RashedulHaqueRasel1",
+  "icon": "resources/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RashedulHaqueRasel1/ontonim-ai.git"
+  },
+  "homepage": "https://github.com/RashedulHaqueRasel1/ontonim-ai#readme",
+  "bugs": {
+    "url": "https://github.com/RashedulHaqueRasel1/ontonim-ai/issues"
+  },
   "engines": {
     "vscode": "^1.75.0"
   },

@@ -155,7 +155,7 @@ async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
         endpoint = "https://api.openai.com/v1/chat/completions";
     } else if (apiProvider === 'betopia') {
         defaultModel = "gpt-5.4-mini";
-        endpoint = "https://platform-backend.betopia.ai/v1/chat/completions";
+        endpoint = "https://api.betopia.ai/v1/chat/completions";
     } else {
         // OpenRouter specific headers
         headers["HTTP-Referer"] = "https://github.com/ontonim-ai/vscode-extension";
