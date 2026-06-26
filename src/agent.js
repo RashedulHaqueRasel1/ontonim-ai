@@ -5,9 +5,16 @@ const SYSTEM_PROMPT = `You are Ontonim AI, an elite AI coding assistant and agen
 You are running as a VS Code extension, directly interacting with the user's workspace.
 Your goal is to help the user build, debug, refactor, and understand their code.
 
-You have access to the user's workspace directory. You can read, write, edit, search, and list files.
+You have access to the user's workspace directory. You can inspect project structure, Git status, diagnostics, open files, dependencies, read/write/edit/move/delete files, format files, validate the workspace, and run approved terminal commands.
 To perform actions, you MUST use the following XML-based tool call formats. You can output multiple tool calls in a single turn if they can be run in parallel.
 Always provide a brief, helpful message explaining what you are doing before outputting tool calls.
+
+Plan-first workflow:
+- For every implementation, refactor, fix, command, file creation, file edit, move, rename, or deletion, first analyze the workspace and then present a concrete plan before any mutating tool.
+- The plan must include: goal, affected files, execution steps, validation, risks, and rollback notes.
+- The VS Code host will ask the user to approve proposed actions before they execute.
+- After changes, validate when possible and finish with a final report: changed files, validation, risks, and recommended next steps.
+- Never skip user approval for mutating tools.
 
 Here are the tool call specifications:
 
@@ -53,12 +60,51 @@ Use this to search for text patterns or terms across all workspace files.
   <query>functionName</query>
 </tool_call>
 
+6. Workspace Snapshot:
+Use this to understand architecture, package scripts, dependencies, Git state, open files, and diagnostics.
+<tool_call name="workspace_snapshot"></tool_call>
+
+7. Git Status:
+<tool_call name="git_status"></tool_call>
+
+8. Git Diff:
+<tool_call name="git_diff">
+  <path>optional/file.js</path>
+</tool_call>
+
+9. Run Terminal Command:
+Use only after explaining why the command is needed. Commands run in the workspace and require approval.
+<tool_call name="run_command">
+  <command>npm run lint</command>
+  <reason>Validate the extension after edits</reason>
+</tool_call>
+
+10. Delete File:
+<tool_call name="delete_file">
+  <path>path/to/file.js</path>
+</tool_call>
+
+11. Move or Rename File:
+<tool_call name="move_file">
+  <from>old/path.js</from>
+  <to>new/path.js</to>
+</tool_call>
+
+12. Format File:
+<tool_call name="format_file">
+  <path>path/to/file.js</path>
+</tool_call>
+
+13. Validate Workspace:
+Runs available lint/test scripts from package.json when present.
+<tool_call name="validate_workspace"></tool_call>
+
 Workflow rules:
 - First, list the files or search the workspace if you don't know the structure.
 - Always verify your changes. If you create a file, you can verify it.
 - After tools execute, you will receive a <tool_response> with the output. Use this output to decide your next steps or formulate your final reply.
 - When you are finished with your task, output a clear summary of the changes made and explanation without any more tool calls.
-- DO NOT invent tools other than the five listed above.
+- DO NOT invent tools other than the tools listed above.
 - NEVER try to access files outside the workspace.
 `;
 
@@ -85,6 +131,18 @@ function parseToolCalls(text) {
         // Parse path
         const pathMatch = /<path>([\s\S]*?)<\/path>/.exec(innerContent);
         if (pathMatch) args.path = pathMatch[1].trim();
+
+        const fromMatch = /<from>([\s\S]*?)<\/from>/.exec(innerContent);
+        if (fromMatch) args.from = fromMatch[1].trim();
+
+        const toMatch = /<to>([\s\S]*?)<\/to>/.exec(innerContent);
+        if (toMatch) args.to = toMatch[1].trim();
+
+        const commandMatch = /<command>([\s\S]*?)<\/command>/.exec(innerContent);
+        if (commandMatch) args.command = commandMatch[1].trim();
+
+        const reasonMatch = /<reason>([\s\S]*?)<\/reason>/.exec(innerContent);
+        if (reasonMatch) args.reason = reasonMatch[1].trim();
 
         // Parse query
         const queryMatch = /<query>([\s\S]*?)<\/query>/.exec(innerContent);
@@ -124,8 +182,8 @@ function parseToolCalls(text) {
 }
 
 /**
- * Call the selected LLM API (OpenRouter or OpenAI) with message history.
- * @param {string} apiProvider - 'openrouter' or 'openai'
+ * Call the selected LLM API with message history.
+ * @param {string} apiProvider - 'openrouter', 'openai', 'betopia', or 'groq'
  * @param {string} apiKey 
  * @param {string} model 
  * @param {Array<Object>} messages 
@@ -134,9 +192,7 @@ function parseToolCalls(text) {
  */
 async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
     if (!apiKey) {
-        let providerName = 'OpenRouter';
-        if (apiProvider === 'openai') providerName = 'OpenAI';
-        else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+        const providerName = getProviderName(apiProvider);
         throw new Error(`${providerName} API key is missing. Please set it in Ontonim AI settings.`);
     }
 
@@ -156,6 +212,9 @@ async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
     } else if (apiProvider === 'betopia') {
         defaultModel = "gpt-5.4-mini";
         endpoint = "https://api.betopia.ai/v1/chat/completions";
+    } else if (apiProvider === 'groq') {
+        defaultModel = "llama-3.3-70b-versatile";
+        endpoint = "https://api.groq.com/openai/v1/chat/completions";
     } else {
         // OpenRouter specific headers
         headers["HTTP-Referer"] = "https://github.com/ontonim-ai/vscode-extension";
@@ -186,34 +245,52 @@ async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
 
         if (!response.ok) {
             const errBody = await response.text();
-            let providerName = 'OpenRouter';
-            if (apiProvider === 'openai') providerName = 'OpenAI';
-            else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+            const providerName = getProviderName(apiProvider);
             throw new Error(`${providerName} API error: ${response.status} - ${errBody}`);
         }
 
         const data = await response.json();
-        if (apiProvider === 'betopia') {
-            if (data.content) {
-                return data.content;
-            } else {
-                throw new Error(`Unexpected Betopia AI response format: ${JSON.stringify(data)}`);
-            }
-        } else {
-            if (data.choices && data.choices[0] && data.choices[0].message) {
-                return data.choices[0].message.content;
-            } else {
-                const providerName = apiProvider === 'openai' ? 'OpenAI' : 'OpenRouter';
-                throw new Error(`Unexpected ${providerName} response format: ${JSON.stringify(data)}`);
-            }
+        const content = extractResponseContent(data);
+        if (typeof content === 'string') {
+            return content;
         }
+
+        const providerName = getProviderName(apiProvider);
+        throw new Error(`Unexpected ${providerName} response format: ${JSON.stringify(data)}`);
     } catch (error) {
-        let providerName = 'OpenRouter';
-        if (apiProvider === 'openai') providerName = 'OpenAI';
-        else if (apiProvider === 'betopia') providerName = 'Betopia AI';
+        const providerName = getProviderName(apiProvider);
         console.error(`${providerName} API call failed:`, error);
         throw error;
     }
+}
+
+function extractResponseContent(data) {
+    if (!data || typeof data !== 'object') return null;
+    if (typeof data.content === 'string') return data.content;
+    if (typeof data.text === 'string') return data.text;
+    if (typeof data.output_text === 'string') return data.output_text;
+
+    const firstChoice = Array.isArray(data.choices) ? data.choices[0] : null;
+    if (firstChoice) {
+        if (firstChoice.message && typeof firstChoice.message.content === 'string') {
+            return firstChoice.message.content;
+        }
+        if (typeof firstChoice.text === 'string') {
+            return firstChoice.text;
+        }
+        if (typeof firstChoice.content === 'string') {
+            return firstChoice.content;
+        }
+    }
+
+    return null;
+}
+
+function getProviderName(apiProvider) {
+    if (apiProvider === 'openai') return 'OpenAI';
+    if (apiProvider === 'betopia') return 'Betopia AI';
+    if (apiProvider === 'groq') return 'Groq';
+    return 'OpenRouter';
 }
 
 /**
@@ -263,6 +340,42 @@ async function executeTool(name, args) {
                 }
                 const formatted = results.map(r => `File: ${r.path}:${r.line} - "${r.text}"`).join('\n');
                 return `Search results for "${args.query}":\n${formatted}`;
+            }
+            case 'workspace_snapshot': {
+                const snapshot = await workspace.getProjectSnapshot();
+                return `Workspace snapshot:\n${JSON.stringify(snapshot, null, 2)}`;
+            }
+            case 'git_status': {
+                return `Git status:\n${await workspace.getGitStatus()}`;
+            }
+            case 'git_diff': {
+                return `Git diff:\n${await workspace.getGitDiff(args.path || null)}`;
+            }
+            case 'run_command': {
+                if (!args.command) throw new Error("Missing 'command' parameter for run_command.");
+                const result = await workspace.execCommand(args.command);
+                return [
+                    `Command: ${result.command}`,
+                    `Exit code: ${result.exitCode}`,
+                    result.timedOut ? 'Timed out: true' : '',
+                    result.stdout ? `STDOUT:\n${result.stdout}` : '',
+                    result.stderr ? `STDERR:\n${result.stderr}` : ''
+                ].filter(Boolean).join('\n');
+            }
+            case 'delete_file': {
+                if (!args.path) throw new Error("Missing 'path' parameter for delete_file.");
+                return workspace.deleteFile(args.path);
+            }
+            case 'move_file': {
+                if (!args.from || !args.to) throw new Error("Missing 'from' or 'to' parameter for move_file.");
+                return workspace.moveFile(args.from, args.to);
+            }
+            case 'format_file': {
+                if (!args.path) throw new Error("Missing 'path' parameter for format_file.");
+                return workspace.formatFile(args.path);
+            }
+            case 'validate_workspace': {
+                return workspace.validateWorkspace();
             }
             default:
                 throw new Error(`Unknown tool: ${name}`);

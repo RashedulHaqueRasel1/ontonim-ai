@@ -255,6 +255,54 @@
             transform: scale(1.02);
         }
 
+        .workspace-intel {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.018);
+        }
+
+        .intel-pill {
+            min-width: 0;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(15, 23, 42, 0.34);
+            border-radius: 7px;
+            padding: 6px 7px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .intel-label {
+            font-size: 8.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 800;
+        }
+
+        .intel-value {
+            color: var(--text-main);
+            font-size: 10.5px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .intel-refresh {
+            background: transparent;
+            border: none;
+            color: var(--accent-primary);
+            cursor: pointer;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 0;
+            text-align: left;
+        }
+
         /* Settings Panel */
         .settings-panel {
             display: none;
@@ -918,6 +966,48 @@
             gap: 8px;
         }
 
+        .plan-preview {
+            background: rgba(15, 23, 42, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 9px 10px;
+            color: var(--text-main);
+            font-size: 11.5px;
+            line-height: 1.45;
+            max-height: 220px;
+            overflow: auto;
+        }
+
+        .diff-preview {
+            margin-top: 7px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            max-height: 180px;
+            overflow: auto;
+            padding: 8px;
+            white-space: pre;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 10px;
+            line-height: 1.35;
+        }
+
+        .tool-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .tool-subtext {
+            color: var(--text-muted);
+            font-family: var(--vscode-font-family, sans-serif);
+            font-size: 9.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .tool-list {
             display: flex;
             flex-direction: column;
@@ -930,8 +1020,9 @@
             border-radius: 6px;
             padding: 8px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
             font-family: var(--vscode-editor-font-family, monospace);
             font-size: 10.5px;
         }
@@ -940,6 +1031,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            justify-content: space-between;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1015,6 +1107,42 @@
             font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
             font-size: 11.5px;
             line-height: 1.45;
+        }
+
+        .syntax-keyword { color: #c084fc; font-weight: 700; }
+        .syntax-string { color: #86efac; }
+        .syntax-comment { color: #94a3b8; font-style: italic; }
+        .file-ref {
+            color: var(--accent-primary);
+            cursor: pointer;
+            border-bottom: 1px dotted rgba(139, 92, 246, 0.55);
+            font-weight: 700;
+        }
+        .md-table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 11.5px;
+        }
+        .md-table th,
+        .md-table td {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .md-table th {
+            background: rgba(139, 92, 246, 0.08);
+            color: #d8b4fe;
+        }
+        .mermaid-box {
+            border: 1px solid rgba(59, 130, 246, 0.22);
+            background: rgba(59, 130, 246, 0.055);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: var(--vscode-editor-font-family, monospace);
+            color: #bfdbfe;
         }
 
         .code-header {
@@ -1232,6 +1360,21 @@
         <div id="modified-files-list" class="modified-files-list"></div>
     </div>
 
+    <div id="workspace-intel" class="workspace-intel">
+        <div class="intel-pill">
+            <span class="intel-label">Workspace</span>
+            <span id="intel-project" class="intel-value">Scanning...</span>
+        </div>
+        <div class="intel-pill">
+            <span class="intel-label">Health</span>
+            <span id="intel-health" class="intel-value">Diagnostics</span>
+        </div>
+        <div class="intel-pill">
+            <span class="intel-label">Context</span>
+            <button id="intel-refresh" class="intel-refresh" title="Refresh workspace intelligence">Refresh</button>
+        </div>
+    </div>
+
     <!-- Prompt History Panel -->
     <div id="history-panel" class="history-panel">
         <div class="history-header">
@@ -1252,6 +1395,7 @@
                     <option value="openrouter">OpenRouter</option>
                     <option value="openai">OpenAI (GPT)</option>
                     <option value="betopia">Betopia AI</option>
+                    <option value="groq">Groq</option>
                 </select>
                 <span class="select-arrow" style="top: 50%; transform: translateY(-50%); right: 12px; font-size: 8px; position: absolute; pointer-events: none;">▼</span>
             </div>
@@ -1268,6 +1412,10 @@
         <div class="settings-group" id="betopia-key-group" style="display: none;">
             <label for="betopia-api-key">Betopia API Key</label>
             <input type="password" id="betopia-api-key" class="settings-input" placeholder="Enter Betopia API Key">
+        </div>
+        <div class="settings-group" id="groq-key-group" style="display: none;">
+            <label for="groq-api-key">Groq API Key</label>
+            <input type="password" id="groq-api-key" class="settings-input" placeholder="gsk_...">
         </div>
         <div class="theme-section">
             <label>Chat Theme</label>
@@ -1368,9 +1516,11 @@
         const openRouterKeyInput = document.getElementById('openrouter-api-key');
         const openAiKeyInput = document.getElementById('openai-api-key');
         const betopiaKeyInput = document.getElementById('betopia-api-key');
+        const groqKeyInput = document.getElementById('groq-api-key');
         const openRouterKeyGroup = document.getElementById('openrouter-key-group');
         const openAiKeyGroup = document.getElementById('openai-key-group');
         const betopiaKeyGroup = document.getElementById('betopia-key-group');
+        const groqKeyGroup = document.getElementById('groq-key-group');
         
         const headerModelSelect = document.getElementById('header-model-select');
         const autoApproveInput = document.getElementById('auto-approve');
@@ -1383,10 +1533,18 @@
 
         const modifiedFilesBar = document.getElementById('modified-files-bar');
         const modifiedFilesList = document.getElementById('modified-files-list');
+        const intelProject = document.getElementById('intel-project');
+        const intelHealth = document.getElementById('intel-health');
+        const intelRefresh = document.getElementById('intel-refresh');
 
         let currentActiveFilePath = null;
         let isGenerating = false;
         let currentToolCard = null;
+
+        intelRefresh.addEventListener('click', () => {
+            intelRefresh.textContent = 'Scanning';
+            vscode.postMessage({ command: 'refreshWorkspaceState' });
+        });
 
         // UI tracking for rendering & editing prompts
         let displayedMessages = []; // Array of { sender: 'user'|'assistant', text: '...', node: Element }
@@ -1575,8 +1733,22 @@
                 { value: 'claude-opus-4-6', label: 'claude-opus-4-6' },
                 { value: 'claude-opus-4-8', label: 'claude-opus-4-8' },
                 { value: 'qwen-code-35b', label: 'qwen-code-35b' }
+            ],
+            groq: [
+                { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+                { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+                { value: 'gemma2-9b-it', label: 'Gemma2 9B IT' },
+                { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill 70B' },
+                { value: 'qwen/qwen3-32b', label: 'Qwen3 32B' }
             ]
         };
+
+        function updateProviderKeyVisibility(provider) {
+            openRouterKeyGroup.style.display = provider === 'openrouter' ? 'flex' : 'none';
+            openAiKeyGroup.style.display = provider === 'openai' ? 'flex' : 'none';
+            betopiaKeyGroup.style.display = provider === 'betopia' ? 'flex' : 'none';
+            groqKeyGroup.style.display = provider === 'groq' ? 'flex' : 'none';
+        }
 
         function updateModelOptions(provider, selectedValue = null) {
             const models = modelsByProvider[provider] || modelsByProvider.openrouter;
@@ -1599,19 +1771,7 @@
         // Toggle key inputs visibility based on selected provider
         apiProviderSelect.addEventListener('change', () => {
             const provider = apiProviderSelect.value;
-            if (provider === 'openai') {
-                openRouterKeyGroup.style.display = 'none';
-                openAiKeyGroup.style.display = 'flex';
-                betopiaKeyGroup.style.display = 'none';
-            } else if (provider === 'betopia') {
-                openRouterKeyGroup.style.display = 'none';
-                openAiKeyGroup.style.display = 'none';
-                betopiaKeyGroup.style.display = 'flex';
-            } else {
-                openRouterKeyGroup.style.display = 'flex';
-                openAiKeyGroup.style.display = 'none';
-                betopiaKeyGroup.style.display = 'none';
-            }
+            updateProviderKeyVisibility(provider);
             updateModelOptions(provider);
             
             // Save provider and default model to host
@@ -1621,6 +1781,7 @@
                 openRouterKey: openRouterKeyInput.value.startsWith('••') ? undefined : openRouterKeyInput.value,
                 openAiKey: openAiKeyInput.value.startsWith('••') ? undefined : openAiKeyInput.value,
                 betopiaKey: betopiaKeyInput.value.startsWith('••') ? undefined : betopiaKeyInput.value,
+                groqKey: groqKeyInput.value.startsWith('••') ? undefined : groqKeyInput.value,
                 model: headerModelSelect.value,
                 autoApprove: autoApproveInput.checked
             });
@@ -1634,6 +1795,7 @@
                 openRouterKey: openRouterKeyInput.value,
                 openAiKey: openAiKeyInput.value,
                 betopiaKey: betopiaKeyInput.value,
+                groqKey: groqKeyInput.value,
                 model: headerModelSelect.value,
                 autoApprove: autoApproveInput.checked
             });
@@ -1661,6 +1823,7 @@
                 openRouterKey: openRouterKeyInput.value.startsWith('••') ? undefined : openRouterKeyInput.value,
                 openAiKey: openAiKeyInput.value.startsWith('••') ? undefined : openAiKeyInput.value,
                 betopiaKey: betopiaKeyInput.value.startsWith('••') ? undefined : betopiaKeyInput.value,
+                groqKey: groqKeyInput.value.startsWith('••') ? undefined : groqKeyInput.value,
                 model: headerModelSelect.value,
                 autoApprove: autoApproveInput.checked
             });
@@ -1943,6 +2106,15 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function setGeneratingState(generating) {
             isGenerating = generating;
             sendBtn.disabled = generating;
@@ -1976,6 +2148,9 @@
             const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
             html = html.replace(codeBlockRegex, (match, lang, code) => {
                 const language = lang || 'code';
+                if (language.toLowerCase() === 'mermaid') {
+                    return `<div class="mermaid-box">${code}</div>`;
+                }
                 return `<pre><div class="code-header">
                             <span>${language}</span>
                             <div class="code-actions">
@@ -1992,8 +2167,10 @@
                                     New File
                                 </button>
                             </div>
-                        </div><code>${code}</code></pre>`;
+                        </div><code class="language-${language}">${highlightCode(code, language)}</code></pre>`;
             });
+
+            html = renderMarkdownTables(html);
 
             // Parse Inline Code
             html = html.replace(/`([^`]+)`/g, '<code style="background-color: rgba(255,255,255,0.07); padding: 1.5px 3.5px; border-radius: 4px; font-weight: 500;">$1</code>');
@@ -2006,14 +2183,59 @@
             // Parse Bold
             html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
+            // Parse clickable file references like src/file.js:12
+            html = html.replace(/\b((?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]+)(?::(\d+))?\b/g, (match, file, line) => {
+                return `<span class="file-ref" data-file="${file}" data-line="${line || ''}">${match}</span>`;
+            });
+
             // Parse Line breaks / paragraphs
             html = html.replace(/\n/g, '<br>');
 
             return html;
         }
 
+        function highlightCode(code, language) {
+            if (!/^(js|jsx|ts|tsx|javascript|typescript|json|css|html|bash|sh)$/i.test(language || '')) {
+                return code;
+            }
+            return code
+                .replace(/(\/\/.*)$/gm, '<span class="syntax-comment">$1</span>')
+                .replace(/(&quot;.*?&quot;|'.*?'|`.*?`)/g, '<span class="syntax-string">$1</span>')
+                .replace(/\b(const|let|var|function|return|async|await|class|new|if|else|for|while|switch|case|import|from|export|try|catch|throw|require)\b/g, '<span class="syntax-keyword">$1</span>');
+        }
+
+        function renderMarkdownTables(html) {
+            const lines = html.split('\n');
+            const output = [];
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim().startsWith('|') && lines[i + 1] && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/.test(lines[i + 1])) {
+                    const headers = lines[i].split('|').map(c => c.trim()).filter(Boolean);
+                    i += 2;
+                    const rows = [];
+                    while (i < lines.length && lines[i].trim().startsWith('|')) {
+                        rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean));
+                        i++;
+                    }
+                    i--;
+                    output.push(`<table class="md-table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+                } else {
+                    output.push(lines[i]);
+                }
+            }
+            return output.join('\n');
+        }
+
         // Bind copy, insert and open-newfile buttons for code blocks
         function bindCodeBlockButtons(parent) {
+            parent.querySelectorAll('.file-ref').forEach(ref => {
+                ref.addEventListener('click', () => {
+                    vscode.postMessage({
+                        command: 'openFile',
+                        filePath: ref.dataset.file
+                    });
+                });
+            });
+
             const preBlocks = parent.querySelectorAll('pre');
             preBlocks.forEach((pre) => {
                 const codeBlock = pre.querySelector('code');
@@ -2062,7 +2284,7 @@
         }
 
         // Handle tool calls in UI
-        function showToolApproval(toolCalls) {
+        function showToolApproval(toolCalls, planText = '') {
             const containerDiv = document.createElement('div');
             containerDiv.className = 'tool-request-container';
             
@@ -2071,6 +2293,13 @@
             headerDiv.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                                    <span>Ontonim AI wants to execute actions:</span>`;
             containerDiv.appendChild(headerDiv);
+
+            if (planText) {
+                const planDiv = document.createElement('div');
+                planDiv.className = 'plan-preview';
+                planDiv.innerHTML = parseMarkdown(planText);
+                containerDiv.appendChild(planDiv);
+            }
 
             // Collapsible header (hidden initially)
             const collapseHeader = document.createElement('div');
@@ -2101,7 +2330,7 @@
                 let badgeType = 'read';
                 let details = '';
                 
-                if (tool.name === 'write_file' || tool.name === 'make_edit') {
+                if (tool.preview && tool.preview.risk === 'write') {
                     badgeType = 'write';
                 }
 
@@ -2115,17 +2344,49 @@
                     details = `Edit file "${tool.args.path}"`;
                 } else if (tool.name === 'search_grep') {
                     details = `Grep search for "${tool.args.query}"`;
+                } else if (tool.name === 'workspace_snapshot') {
+                    details = 'Analyze workspace architecture, Git, dependencies and diagnostics';
+                } else if (tool.name === 'git_status') {
+                    details = 'Inspect Git status';
+                } else if (tool.name === 'git_diff') {
+                    details = tool.args.path ? `Inspect diff for "${tool.args.path}"` : 'Inspect workspace diff';
+                } else if (tool.name === 'run_command') {
+                    details = `Run command "${tool.args.command}"`;
+                } else if (tool.name === 'delete_file') {
+                    details = `Delete file "${tool.args.path}"`;
+                } else if (tool.name === 'move_file') {
+                    details = `Move "${tool.args.from}" to "${tool.args.to}"`;
+                } else if (tool.name === 'format_file') {
+                    details = `Format file "${tool.args.path}"`;
                 }
 
                 itemDiv.innerHTML = `
                     <div class="tool-info">
                         <span class="tool-badge ${badgeType}">${tool.name}</span>
-                        <span>${details}</span>
+                        <span class="tool-meta">
+                            <span>${escapeHtml(details)}</span>
+                            <span class="tool-subtext">${escapeHtml((tool.preview && tool.preview.summary) || '')}</span>
+                        </span>
                     </div>
                     <div class="tool-status-icon" id="tool-status-${index}">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clock"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     </div>
                 `;
+
+                if (tool.preview && tool.preview.diff) {
+                    const diff = document.createElement('pre');
+                    diff.className = 'diff-preview';
+                    diff.textContent = tool.preview.diff;
+                    itemDiv.appendChild(diff);
+                }
+
+                if (tool.preview && tool.preview.warning) {
+                    const warning = document.createElement('div');
+                    warning.className = 'tool-subtext';
+                    warning.style.color = '#fbbf24';
+                    warning.textContent = tool.preview.warning;
+                    itemDiv.appendChild(warning);
+                }
                 listDiv.appendChild(itemDiv);
             });
             containerDiv.appendChild(listDiv);
@@ -2273,24 +2534,12 @@
                 case 'setSettings':
                     const provider = message.apiProvider || 'openrouter';
                     apiProviderSelect.value = provider;
-                    
-                    if (provider === 'openai') {
-                        openRouterKeyGroup.style.display = 'none';
-                        openAiKeyGroup.style.display = 'flex';
-                        betopiaKeyGroup.style.display = 'none';
-                    } else if (provider === 'betopia') {
-                        openRouterKeyGroup.style.display = 'none';
-                        openAiKeyGroup.style.display = 'none';
-                        betopiaKeyGroup.style.display = 'flex';
-                    } else {
-                        openRouterKeyGroup.style.display = 'flex';
-                        openAiKeyGroup.style.display = 'none';
-                        betopiaKeyGroup.style.display = 'none';
-                    }
+                    updateProviderKeyVisibility(provider);
                     
                     openRouterKeyInput.value = message.openRouterKey || '';
                     openAiKeyInput.value = message.openAiKey || '';
                     betopiaKeyInput.value = message.betopiaKey || '';
+                    groqKeyInput.value = message.groqKey || '';
                     
                     updateModelOptions(provider, message.model);
                     autoApproveInput.checked = !!message.autoApprove;
@@ -2299,7 +2548,7 @@
 
                 case 'requireToolApproval':
                     setGeneratingState(false);
-                    showToolApproval(message.toolCalls);
+                    showToolApproval(message.toolCalls, message.plan);
                     break;
 
                 case 'setModifiedFiles':
@@ -2322,8 +2571,10 @@
 
                             if (message.status === 'success' && currentToolCard) {
                                 const tool = currentToolCard.tools[message.index];
-                                if (tool && (tool.name === 'write_file' || tool.name === 'make_edit')) {
+                                if (tool && (tool.name === 'write_file' || tool.name === 'make_edit' || tool.name === 'delete_file')) {
                                     currentToolCard.editedFiles.add(tool.args.path);
+                                } else if (tool && tool.name === 'move_file') {
+                                    currentToolCard.editedFiles.add(tool.args.to);
                                 }
                             }
 
@@ -2352,6 +2603,24 @@
                         activeFileBadge.style.display = 'flex';
                     } else {
                         activeFileBadge.style.display = 'none';
+                    }
+                    break;
+
+                case 'setWorkspaceState':
+                    intelRefresh.textContent = 'Refresh';
+                    if (message.error) {
+                        intelProject.textContent = 'Unavailable';
+                        intelHealth.textContent = message.error;
+                        break;
+                    }
+                    if (message.snapshot) {
+                        const snapshot = message.snapshot;
+                        intelProject.textContent = `${snapshot.rootName} · ${snapshot.fileCount} files`;
+                        const errorCount = (snapshot.diagnostics || []).filter(d => d.severity === 'Error').length;
+                        const warningCount = (snapshot.diagnostics || []).filter(d => d.severity === 'Warning').length;
+                        intelHealth.textContent = errorCount || warningCount
+                            ? `${errorCount} errors · ${warningCount} warnings`
+                            : 'No diagnostics';
                     }
                     break;
             }

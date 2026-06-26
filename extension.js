@@ -25,12 +25,20 @@ function activate(context) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('ontonim-ai.refreshWorkspaceState', async () => {
+            await provider.sendWorkspaceStateToWebview();
+            vscode.window.showInformationMessage("Ontonim AI workspace intelligence refreshed.");
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('ontonim-ai.setApiKey', async () => {
             const providerSelection = await vscode.window.showQuickPick(
                 [
                     { label: "OpenRouter", description: "Use models like Gemini, Claude, Llama, DeepSeek via OpenRouter", id: "openrouter" },
                     { label: "OpenAI (GPT)", description: "Use OpenAI models (GPT-4o, GPT-4o-mini, etc.) directly", id: "openai" },
-                    { label: "Betopia AI", description: "Use Betopia AI models (gpt-5.4-mini, etc.) directly", id: "betopia" }
+                    { label: "Betopia AI", description: "Use Betopia AI models (gpt-5.4-mini, etc.) directly", id: "betopia" },
+                    { label: "Groq", description: "Use fast Groq-hosted OpenAI-compatible chat models", id: "groq" }
                 ],
                 { placeHolder: "Select API Provider" }
             );
@@ -52,6 +60,11 @@ function activate(context) {
                 keyPlaceholder = "Enter Betopia API Key";
                 secretKey = 'betopia_api_key';
                 defaultModel = 'gpt-5.4-mini';
+            } else if (providerSelection.id === 'groq') {
+                keyPrompt = "Enter your Groq API Key";
+                keyPlaceholder = "gsk_...";
+                secretKey = 'groq_api_key';
+                defaultModel = 'llama-3.3-70b-versatile';
             }
 
             const key = await vscode.window.showInputBox({
@@ -82,6 +95,7 @@ function activate(context) {
                     { label: "OpenRouter API Key", id: "openrouter" },
                     { label: "OpenAI API Key", id: "openai" },
                     { label: "Betopia API Key", id: "betopia" },
+                    { label: "Groq API Key", id: "groq" },
                     { label: "All API Keys", id: "all" }
                 ],
                 { placeHolder: "Select API Key to Clear" }
@@ -97,6 +111,9 @@ function activate(context) {
             }
             if (clearSelection.id === 'betopia' || clearSelection.id === 'all') {
                 await context.secrets.delete('betopia_api_key');
+            }
+            if (clearSelection.id === 'groq' || clearSelection.id === 'all') {
+                await context.secrets.delete('groq_api_key');
             }
 
             vscode.window.showInformationMessage(`Ontonim AI API Key(s) cleared.`);
@@ -203,6 +220,8 @@ class OntonimAIChatProvider {
     }
 
     resolveWebviewView(webviewView, context, token) {
+        void context;
+        void token;
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -219,6 +238,7 @@ class OntonimAIChatProvider {
                     await this.sendSettingsToWebview();
                     this.sendActiveFileToWebview(vscode.window.activeTextEditor);
                     this.sendModifiedFilesToWebview();
+                    await this.sendWorkspaceStateToWebview();
                     break;
 
                 case 'saveSettings':
@@ -241,6 +261,11 @@ class OntonimAIChatProvider {
                         await this._context.secrets.store('betopia_api_key', trimmed);
                         updatedKeys.push("Betopia AI");
                     }
+                    if (data.groqKey && !data.groqKey.includes('•') && data.groqKey.trim() !== '') {
+                        const trimmed = data.groqKey.trim();
+                        await this._context.secrets.store('groq_api_key', trimmed);
+                        updatedKeys.push("Groq");
+                    }
                     await this._context.globalState.update('api_provider', data.apiProvider);
                     await this._context.globalState.update('selected_model', data.model);
                     await this._context.globalState.update('auto_approve_readonly', data.autoApprove);
@@ -259,6 +284,7 @@ class OntonimAIChatProvider {
                     this._pendingAiResponse = null;
                     this._modifiedFiles.clear();
                     this.sendModifiedFilesToWebview();
+                    await this._context.globalState.update('session_memory', []);
                     break;
 
                 case 'sendMessage':
@@ -293,9 +319,8 @@ class OntonimAIChatProvider {
 
                 case 'openFile':
                     try {
-                        const root = workspace.getWorkspaceRoot();
-                        if (root) {
-                            const fullPath = path.join(root, data.filePath);
+                        const fullPath = workspace.getAbsolutePath(data.filePath);
+                        if (fullPath) {
                             const doc = await vscode.workspace.openTextDocument(fullPath);
                             await vscode.window.showTextDocument(doc, { preview: false });
                         }
@@ -315,6 +340,10 @@ class OntonimAIChatProvider {
                 case 'rejectTools':
                     this.handleToolRejection();
                     break;
+
+                case 'refreshWorkspaceState':
+                    await this.sendWorkspaceStateToWebview();
+                    break;
             }
         });
     }
@@ -333,6 +362,10 @@ class OntonimAIChatProvider {
             providerKey = 'betopia_api_key';
             defaultModel = 'gpt-5.4-mini';
             providerName = 'Betopia AI';
+        } else if (apiProvider === 'groq') {
+            providerKey = 'groq_api_key';
+            defaultModel = 'llama-3.3-70b-versatile';
+            providerName = 'Groq';
         }
 
         const apiKey = await this._context.secrets.get(providerKey);
@@ -347,10 +380,12 @@ class OntonimAIChatProvider {
         const openRouterKey = await this._context.secrets.get('openrouter_api_key');
         const openAiKey = await this._context.secrets.get('openai_api_key');
         const betopiaKey = await this._context.secrets.get('betopia_api_key');
+        const groqKey = await this._context.secrets.get('groq_api_key');
         
         let defaultModel = 'google/gemini-2.5-flash';
         if (apiProvider === 'openai') defaultModel = 'gpt-4o';
         else if (apiProvider === 'betopia') defaultModel = 'gpt-5.4-mini';
+        else if (apiProvider === 'groq') defaultModel = 'llama-3.3-70b-versatile';
 
         const model = this._context.globalState.get('selected_model') || defaultModel;
         const autoApprove = !!this._context.globalState.get('auto_approve_readonly');
@@ -361,6 +396,7 @@ class OntonimAIChatProvider {
             openRouterKey: openRouterKey ? '••••••••••••••••••••' : '',
             openAiKey: openAiKey ? '••••••••••••••••••••' : '',
             betopiaKey: betopiaKey ? '••••••••••••••••••••' : '',
+            groqKey: groqKey ? '••••••••••••••••••••' : '',
             model,
             autoApprove
         });
@@ -409,13 +445,21 @@ class OntonimAIChatProvider {
             return;
         }
 
+        const sessionMemory = this._context.globalState.get('session_memory') || [];
+        const workspaceProfile = mode === 'agent' ? await this.getWorkspaceProfileText() : '';
+
         // Prepare context-enhanced message content
-        let fullUserMessage = text;
+        let fullUserMessage = [
+            workspaceProfile,
+            sessionMemory.length ? `Session memory:\n${sessionMemory.map(item => `- ${item}`).join('\n')}` : '',
+            `User prompt: ${text}`
+        ].filter(Boolean).join('\n\n');
+
         if (activeFile && mode === 'agent') {
             try {
                 const fileContent = await workspace.readFile(activeFile);
-                fullUserMessage = `Context: User is currently working on \`${activeFile}\` with the following content:\n\`\`\`\n${fileContent}\n\`\`\`\n\nUser prompt: ${text}`;
-            } catch (err) {
+                fullUserMessage = `${workspaceProfile}\n\nSession memory:\n${sessionMemory.map(item => `- ${item}`).join('\n') || '- No prior memory yet.'}\n\nActive file: \`${activeFile}\`\n\`\`\`\n${fileContent}\n\`\`\`\n\nUser prompt: ${text}`;
+            } catch {
                 // If it fails to read the active file, fall back to pure user message
             }
         }
@@ -457,11 +501,12 @@ class OntonimAIChatProvider {
                     continueLoop = false;
                 } else {
                     // AI proposed tool calls. Store them and request approval
-                    this._pendingToolCalls = toolCalls;
+                    const enhancedToolCalls = await this.enhanceToolCalls(toolCalls);
+                    this._pendingToolCalls = enhancedToolCalls;
                     this._pendingAiResponse = response;
 
                     const autoApproveEnabled = !!this._context.globalState.get('auto_approve_readonly');
-                    const allReadOnly = toolCalls.every(t => ['list_dir', 'read_file', 'search_grep'].includes(t.name));
+                    const allReadOnly = enhancedToolCalls.every(t => ['list_dir', 'read_file', 'search_grep', 'workspace_snapshot', 'git_status', 'git_diff'].includes(t.name));
 
                     if (autoApproveEnabled && allReadOnly) {
                         // Auto-execute if user permitted and all calls are read-only
@@ -471,7 +516,8 @@ class OntonimAIChatProvider {
                         // Ask user for permission
                         this._view.webview.postMessage({
                             command: 'requireToolApproval',
-                            toolCalls: toolCalls
+                            toolCalls: enhancedToolCalls,
+                            plan: this.extractPlanSummary(response)
                         });
                         continueLoop = false; // Pause and wait for WebView message
                     }
@@ -522,6 +568,10 @@ class OntonimAIChatProvider {
             
             if (!isError && (tool.name === 'write_file' || tool.name === 'make_edit')) {
                 this._modifiedFiles.add(tool.args.path);
+            } else if (!isError && tool.name === 'move_file') {
+                this._modifiedFiles.add(tool.args.to);
+            } else if (!isError && tool.name === 'delete_file') {
+                this._modifiedFiles.add(tool.args.path);
             }
 
             // Notify WebView of result
@@ -535,6 +585,8 @@ class OntonimAIChatProvider {
         }
 
         this.sendModifiedFilesToWebview();
+        await this.rememberSessionFacts(toolCalls);
+        await this.sendWorkspaceStateToWebview();
 
         // Add tool results as a single user message to feed back to the AI
         const toolResultsMessage = `Tool execution results:\n${results.join('\n')}`;
@@ -591,7 +643,7 @@ class OntonimAIChatProvider {
             try {
                 const fileContent = await workspace.readFile(activeFile);
                 fullUserMessage = `Context: User is currently working on \`${activeFile}\` with the following content:\n\`\`\`\n${fileContent}\n\`\`\`\n\nUser prompt: ${text}`;
-            } catch (err) {
+            } catch {
                 // If it fails to read the active file, fall back to pure user message
             }
         }
@@ -613,7 +665,88 @@ class OntonimAIChatProvider {
         });
     }
 
-    _getHtmlForWebview(webview) {
+    async getWorkspaceProfileText() {
+        try {
+            const snapshot = await workspace.getProjectSnapshot();
+            const pkg = snapshot.packageInfo;
+            return [
+                'Workspace intelligence:',
+                `- Project: ${snapshot.rootName}`,
+                `- Files indexed: ${snapshot.fileCount}`,
+                pkg ? `- Package: ${pkg.name || 'unnamed'}; scripts: ${Object.keys(pkg.scripts || {}).join(', ') || 'none'}` : '- Package: none detected',
+                pkg ? `- Dependencies: ${(pkg.dependencies || []).slice(0, 12).join(', ') || 'none'}` : '',
+                `- Open files: ${snapshot.openFiles.map(f => `${f.path}${f.dirty ? ' (dirty)' : ''}`).join(', ') || 'none'}`,
+                `- Diagnostics: ${snapshot.diagnostics.length ? snapshot.diagnostics.map(d => `${d.severity} ${d.file}:${d.line} ${d.message}`).slice(0, 8).join(' | ') : 'none'}`,
+                `- Git: ${snapshot.gitStatus.split('\n').slice(0, 8).join(' | ')}`
+            ].filter(Boolean).join('\n');
+        } catch (err) {
+            return `Workspace intelligence unavailable: ${err.message}`;
+        }
+    }
+
+    async sendWorkspaceStateToWebview() {
+        if (!this._view) return;
+        try {
+            const snapshot = await workspace.getProjectSnapshot();
+            this._view.webview.postMessage({
+                command: 'setWorkspaceState',
+                snapshot,
+                memory: this._context.globalState.get('session_memory') || []
+            });
+        } catch (err) {
+            this._view.webview.postMessage({
+                command: 'setWorkspaceState',
+                error: err.message,
+                memory: this._context.globalState.get('session_memory') || []
+            });
+        }
+    }
+
+    async enhanceToolCalls(toolCalls) {
+        const enhanced = [];
+        for (const tool of toolCalls) {
+            try {
+                const preview = await workspace.previewTool(tool);
+                enhanced.push({ ...tool, preview });
+            } catch (err) {
+                enhanced.push({
+                    ...tool,
+                    preview: {
+                        risk: ['write_file', 'make_edit', 'delete_file', 'move_file', 'run_command'].includes(tool.name) ? 'write' : 'read',
+                        affectedFiles: [],
+                        summary: workspace.describeTool(tool),
+                        diff: '',
+                        warning: err.message
+                    }
+                });
+            }
+        }
+        return enhanced;
+    }
+
+    extractPlanSummary(response) {
+        const cleaned = response
+            .replace(/<tool_call[\s\S]*?<\/tool_call>/g, '')
+            .trim();
+        return cleaned || 'Ontonim AI has prepared an execution plan and is requesting approval for the next actions.';
+    }
+
+    async rememberSessionFacts(toolCalls) {
+        const memory = this._context.globalState.get('session_memory') || [];
+        const changed = toolCalls
+            .filter(t => ['write_file', 'make_edit', 'delete_file', 'move_file', 'run_command'].includes(t.name))
+            .map(t => {
+                if (t.name === 'move_file') return `Moved ${t.args.from} to ${t.args.to}`;
+                if (t.name === 'run_command') return `Ran command: ${t.args.command}`;
+                return `${t.name} on ${t.args.path}`;
+            });
+
+        if (changed.length === 0) return;
+        const nextMemory = [...changed, ...memory].slice(0, 20);
+        await this._context.globalState.update('session_memory', nextMemory);
+    }
+
+    _getHtmlForWebview() {
         const htmlPath = path.join(this._context.extensionPath, 'src', 'webview', 'sidebar.html');
         return fs.readFileSync(htmlPath, 'utf8');
     }
@@ -621,6 +754,8 @@ class OntonimAIChatProvider {
 
 class OntonimCodeActionProvider {
     provideCodeActions(document, range, context, token) {
+        void range;
+        void token;
         const diagnostics = context.diagnostics;
         if (!diagnostics || diagnostics.length === 0) {
             return [];

@@ -5,7 +5,7 @@
 
 ---
 
-Ontonim AI is a next-generation AI coding assistant designed to empower developers by seamlessly integrating context-aware artificial intelligence directly into the Visual Studio Code editor. Powered by **OpenRouter**, it connects you to top-tier LLMs (Gemini, Claude, DeepSeek, Llama) to help you build, refactor, search, and troubleshoot your projects efficiently.
+Ontonim AI is a next-generation AI coding assistant designed to empower developers by seamlessly integrating context-aware artificial intelligence directly into the Visual Studio Code editor. It supports **OpenRouter**, **OpenAI**, **Betopia AI**, and **Groq**, connecting you to top-tier LLMs to help you build, refactor, search, and troubleshoot your projects efficiently.
 
 Unlike simple chat bots, Ontonim AI is **Agentic**. It doesn't just give you code snippets; it can independently explore your workspace, read files, search across directories, and apply precise multi-file edits directly into your project.
 
@@ -25,8 +25,10 @@ Unlike simple chat bots, Ontonim AI is **Agentic**. It doesn't just give you cod
 
 ### 🧠 Workspace-Aware Agent
 *   **Active File Context:** Ontonim AI automatically detects the file you are actively editing and silently feeds it as context, making your queries precise and seamless.
-*   **Autonomous Tools:** Proposes and executes operations (Read, Write, Edit, Grep, List) in your workspace using an XML-based Tool System.
-*   **Safety Controls:** Review all file operations before they execute, or enable **Auto-approve read tools** for a frictionless workflow.
+*   **Deep Project Intelligence:** The agent analyzes workspace files, package scripts, dependencies, open editors, Git status, diagnostics, and recent session memory before planning work.
+*   **Plan-First Agent Workflow:** For implementation tasks, Ontonim AI analyzes context, presents an execution plan with affected files, validation, risks, and rollback notes, then waits for approval.
+*   **Autonomous Tools:** Proposes and executes operations (Read, Write, Edit, Grep, List, Move, Delete, Format, Validate, Git, Terminal Commands) in your workspace using an XML-based Tool System.
+*   **Safety Controls:** Review all file operations before they execute, including summaries, risk labels, affected files, and diff previews. You can still enable **Auto-approve read tools** for frictionless exploration.
 
 ### ⚡ Smart Interactions & Productivity
 *   **Quick Fix Integrations:** Built-in VS Code `CodeActionProvider`. Simply press `Ctrl + Shift + .` on any diagnostic error to trigger the **"Explain and Fix"** command.
@@ -34,6 +36,10 @@ Unlike simple chat bots, Ontonim AI is **Agentic**. It doesn't just give you cod
 *   **Auto-Collapsing AI Responses:** Large, extensive outputs automatically collapse into a compact view to keep your chat interface incredibly clean and readable. 
 *   **Prompt Editing & Copying:** One-click copy for any AI response and a quick edit button for tweaking and resubmitting your own user prompts.
 *   **Quick Prompts & Follow-Ups:** One-click suggested follow-up chips generated dynamically based on the context of the AI's response.
+*   **Workspace Intelligence Strip:** Live project, diagnostic, and context status at the top of the assistant panel.
+*   **Rich Markdown Rendering:** Code blocks, syntax accents, tables, Mermaid blocks, clickable file references, copy/insert/open-new-file actions, and collapsible responses.
+*   **Session Memory:** Remembers previous approved actions and workspace preferences across the session through VS Code global state.
+*   **Git & Terminal Support:** The agent can inspect status/diffs, run approved commands, validate work, suggest commits, summarize changes, and include rollback notes in final reports.
 
 ---
 
@@ -57,11 +63,16 @@ Unlike simple chat bots, Ontonim AI is **Agentic**. It doesn't just give you cod
 ## ⚙️ Configuration
 
 1.  Click the **Gear Icon (⚙️)** at the top right of the Ontonim AI sidebar.
-2.  Paste your **OpenRouter API Key** *(keys are stored securely in VS Code's Secret Storage)*.
+2.  Select **OpenRouter**, **OpenAI**, **Betopia AI**, or **Groq**, then paste the matching API key *(keys are stored securely in VS Code's Secret Storage)*.
 3.  Select your preferred **Chat Theme** to customize your experience.
 4.  Toggle **Auto-approve read-only tools** if you prefer the agent to explore files without interrupting you for permissions.
 5.  Click **Save Settings**.
-6.  Use the **Header Dropdown** to seamlessly switch between top-tier AI models (e.g., Gemini 2.5 Pro, Claude 3.5 Sonnet).
+6.  Use the **Header Dropdown** to seamlessly switch between provider-specific AI models.
+
+### Provider Response Support
+
+*   **Betopia AI:** Handles the direct response shape: `content`, `input_tokens`, `output_tokens`, `latency_ms`, and `request_id`.
+*   **Groq:** Uses Groq's OpenAI-compatible chat completions endpoint and reads responses from `choices[0].message.content`.
 
 ---
 
@@ -76,6 +87,22 @@ Ontonim AI understands the structure of your project by executing proposed tool 
 | `write_file` | Create a new file or rewrite an existing one | *"Create a new React component called UserCard"* |
 | `make_edit` | Execute targeted search-and-replace | *"Rename the 'count' state variable to 'totalCount'"* |
 | `search_grep` | Search text patterns globally | *"Find everywhere the DatabaseService is used"* |
+| `workspace_snapshot` | Inspect architecture, dependencies, Git, diagnostics, and open files | *"Understand this project before changing auth"* |
+| `git_status` / `git_diff` | Review repository changes | *"Summarize my current changes"* |
+| `run_command` | Run an approved terminal command in the workspace | *"Run lint and fix any failures"* |
+| `move_file` / `delete_file` | Rename, move, or remove files with approval | *"Move these utilities into src/lib"* |
+| `format_file` / `validate_workspace` | Format and validate changes | *"Format changed files and run available checks"* |
+
+## 🛡️ Safe Execution Model
+
+Ontonim AI separates thinking from execution:
+
+1.  Analyze workspace context and current editor state.
+2.  Generate a plan with affected files, risks, validation, and rollback notes.
+3.  Show proposed actions with approval controls and diff previews.
+4.  Execute only after approval.
+5.  Validate with available format/lint/test commands where possible.
+6.  Return a final report covering changes, checks, residual risks, and next recommendations.
 
 ---
 

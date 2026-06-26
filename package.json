@@ -59,6 +59,10 @@
       {
         "command": "ontonim-ai.explainAndFix",
         "title": "Ontonim AI: Explain and Fix Error"
+      },
+      {
+        "command": "ontonim-ai.refreshWorkspaceState",
+        "title": "Ontonim AI: Refresh Workspace Intelligence"
       }
     ],
     "keybindings": [
@@ -72,6 +76,11 @@
       "editor/title": [
         {
           "command": "ontonim-ai.focusSidebar",
+          "group": "navigation",
+          "when": "true"
+        },
+        {
+          "command": "ontonim-ai.refreshWorkspaceState",
           "group": "navigation",
           "when": "true"
         }
@@ -89,7 +98,12 @@
             "google/gemini-2.5-pro",
             "anthropic/claude-3.5-sonnet",
             "meta-llama/llama-3.3-70b-instruct",
-            "deepseek/deepseek-chat"
+            "deepseek/deepseek-chat",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "gemma2-9b-it",
+            "deepseek-r1-distill-llama-70b",
+            "qwen/qwen3-32b"
           ]
         },
         "ontonimAi.autoApproveTools": {
