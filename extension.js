@@ -1,4 +1,5 @@
 const vscode = require('vscode');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const agent = require('./src/agent');
@@ -25,9 +26,9 @@ function activate(context) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('ontonim-ai.refreshWorkspaceState', async () => {
+        vscode.commands.registerCommand('ontonim-ai', async () => {
             await provider.sendWorkspaceStateToWebview();
-            vscode.window.showInformationMessage("Ontonim AI workspace intelligence refreshed.");
+            vscode.window.showInformationMessage("Ontonim AI");
         })
     );
 
@@ -81,6 +82,7 @@ function activate(context) {
                 await context.secrets.store(secretKey, trimmedKey);
                 await context.globalState.update('api_provider', providerSelection.id);
                 await context.globalState.update('selected_model', defaultModel);
+                await provider.syncCredentialToBackend(providerSelection.id, defaultModel, trimmedKey);
 
                 vscode.window.showInformationMessage(`Ontonim AI ${providerSelection.label} API Key saved successfully.`);
                 provider.sendSettingsToWebview();
@@ -118,6 +120,13 @@ function activate(context) {
 
             vscode.window.showInformationMessage(`Ontonim AI API Key(s) cleared.`);
             provider.sendSettingsToWebview();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ontonim-ai.logout', async () => {
+            await provider.logout();
+            vscode.window.showInformationMessage("Ontonim AI: Logged out.");
         })
     );
 
@@ -217,6 +226,9 @@ class OntonimAIChatProvider {
     constructor(context) {
         this._context = context;
         this._modifiedFiles = new Set();
+        this._abortController = null;
+        this._cancelRequested = false;
+        this._stopNoticeSent = false;
     }
 
     resolveWebviewView(webviewView, context, token) {
@@ -236,6 +248,7 @@ class OntonimAIChatProvider {
             switch (data.command) {
                 case 'loadSettings':
                     await this.sendSettingsToWebview();
+                    await this.sendAuthStateToWebview();
                     this.sendActiveFileToWebview(vscode.window.activeTextEditor);
                     this.sendModifiedFilesToWebview();
                     await this.sendWorkspaceStateToWebview();
@@ -243,9 +256,11 @@ class OntonimAIChatProvider {
 
                 case 'saveSettings':
                     let updatedKeys = [];
+                    const changedKeys = {};
                     if (data.openRouterKey && !data.openRouterKey.includes('•') && data.openRouterKey.trim() !== '') {
                         const trimmed = data.openRouterKey.trim();
                         await this._context.secrets.store('openrouter_api_key', trimmed);
+                        changedKeys.openrouter = trimmed;
                         updatedKeys.push("OpenRouter");
                     }
                     if (data.openAiKey && !data.openAiKey.includes('•') && data.openAiKey.trim() !== '') {
@@ -254,21 +269,25 @@ class OntonimAIChatProvider {
                             vscode.window.showWarningMessage("Ontonim AI Warning: The key you entered for OpenAI starts with 'sk-ant-', which is typically an Anthropic Claude key. OpenAI keys usually start with 'sk-proj-'.");
                         }
                         await this._context.secrets.store('openai_api_key', trimmed);
+                        changedKeys.openai = trimmed;
                         updatedKeys.push("OpenAI");
                     }
                     if (data.betopiaKey && !data.betopiaKey.includes('•') && data.betopiaKey.trim() !== '') {
                         const trimmed = data.betopiaKey.trim();
                         await this._context.secrets.store('betopia_api_key', trimmed);
+                        changedKeys.betopia = trimmed;
                         updatedKeys.push("Betopia AI");
                     }
                     if (data.groqKey && !data.groqKey.includes('•') && data.groqKey.trim() !== '') {
                         const trimmed = data.groqKey.trim();
                         await this._context.secrets.store('groq_api_key', trimmed);
+                        changedKeys.groq = trimmed;
                         updatedKeys.push("Groq");
                     }
                     await this._context.globalState.update('api_provider', data.apiProvider);
                     await this._context.globalState.update('selected_model', data.model);
                     await this._context.globalState.update('auto_approve_readonly', data.autoApprove);
+                    await this.syncCredentialToBackend(data.apiProvider, data.model, changedKeys[data.apiProvider]);
                     
                     if (updatedKeys.length > 0) {
                         vscode.window.showInformationMessage(`Ontonim AI: Saved settings and updated API Key for: ${updatedKeys.join(', ')}.`);
@@ -288,7 +307,16 @@ class OntonimAIChatProvider {
                     break;
 
                 case 'sendMessage':
+                    if (!(await this.ensureAuthenticated())) return;
                     await this.handleUserMessage(data.text, data.activeFile, data.mode);
+                    break;
+
+                case 'loginWithGoogle':
+                    await this.loginWithGoogle();
+                    break;
+
+                case 'logout':
+                    await this.logout();
                     break;
 
                 case 'insertCode':
@@ -341,6 +369,10 @@ class OntonimAIChatProvider {
                     this.handleToolRejection();
                     break;
 
+                case 'stopGeneration':
+                    this.stopCurrentRun();
+                    break;
+
                 case 'refreshWorkspaceState':
                     await this.sendWorkspaceStateToWebview();
                     break;
@@ -372,6 +404,187 @@ class OntonimAIChatProvider {
         const model = this._context.globalState.get('selected_model') || defaultModel;
 
         return { apiProvider, apiKey, model, providerName };
+    }
+
+    getBackendUrl() {
+        const configured = vscode.workspace.getConfiguration('ontonimAi').get('backendUrl') || 'http://localhost:3987';
+        return String(configured).replace(/\/+$/, '');
+    }
+
+    async getAuthState() {
+        const token = await this._context.secrets.get('ontonim_auth_token');
+        const user = this._context.globalState.get('ontonim_auth_user') || null;
+        return {
+            isAuthenticated: !!(token && user),
+            user
+        };
+    }
+
+    async sendAuthStateToWebview(extra = {}) {
+        if (!this._view) return;
+        const auth = await this.getAuthState();
+        this._view.webview.postMessage({
+            command: 'setAuthState',
+            ...auth,
+            ...extra
+        });
+    }
+
+    async ensureAuthenticated() {
+        const auth = await this.getAuthState();
+        if (auth.isAuthenticated) return true;
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                command: 'setAuthState',
+                isAuthenticated: false,
+                user: null,
+                error: 'Please sign in with Google before using Ontonim AI.'
+            });
+        }
+        return false;
+    }
+
+    async loginWithGoogle() {
+        if (!this._view) return;
+
+        const backendUrl = this.getBackendUrl();
+        const state = crypto.randomUUID();
+
+        try {
+            this._view.webview.postMessage({
+                command: 'authProgress',
+                status: 'Opening Google sign-in...'
+            });
+
+            const urlResponse = await fetch(`${backendUrl}/auth/google/url?state=${encodeURIComponent(state)}`);
+            if (!urlResponse.ok) {
+                throw new Error(`Backend returned ${urlResponse.status}. Is the auth backend running at ${backendUrl}?`);
+            }
+
+            const { authUrl } = await urlResponse.json();
+            if (!authUrl) {
+                throw new Error('Backend did not return a Google auth URL.');
+            }
+
+            await vscode.env.openExternal(vscode.Uri.parse(authUrl));
+            await this.pollAuthSession(backendUrl, state);
+        } catch (err) {
+            this._view.webview.postMessage({
+                command: 'setAuthState',
+                isAuthenticated: false,
+                user: null,
+                error: this.formatAuthError(err, backendUrl)
+            });
+        }
+    }
+
+    formatAuthError(err, backendUrl) {
+        const message = err && err.message ? err.message : String(err);
+        if (
+            message === 'fetch failed' ||
+            message.includes('ECONNREFUSED') ||
+            message.includes('ENOTFOUND') ||
+            message.includes('Failed to fetch')
+        ) {
+            return `Cannot connect to Ontonim AI backend at ${backendUrl}. Start it with "npm run backend:dev" and make sure ontonimAi.backendUrl matches this URL.`;
+        }
+
+        return message;
+    }
+
+    async pollAuthSession(backendUrl, state) {
+        const startedAt = Date.now();
+        const timeoutMs = 120000;
+
+        while (Date.now() - startedAt < timeoutMs) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            const response = await fetch(`${backendUrl}/auth/session/${encodeURIComponent(state)}`);
+            if (response.status === 404) {
+                continue;
+            }
+            if (!response.ok) {
+                throw new Error(`Auth session check failed with ${response.status}.`);
+            }
+
+            const session = await response.json();
+            if (session.status === 'complete' && session.token && session.user) {
+                await this._context.secrets.store('ontonim_auth_token', session.token);
+                await this._context.globalState.update('ontonim_auth_user', session.user);
+                await this.sendAuthStateToWebview();
+                const { apiProvider, apiKey, model } = await this.getProviderConfig();
+                await this.syncCredentialToBackend(apiProvider, model, apiKey || '');
+                vscode.window.showInformationMessage(`Ontonim AI: Signed in as ${session.user.email}.`);
+                return;
+            }
+
+            this._view.webview.postMessage({
+                command: 'authProgress',
+                status: 'Waiting for Google sign-in...'
+            });
+        }
+
+        throw new Error('Google sign-in timed out. Please try again.');
+    }
+
+    async logout() {
+        await this._context.secrets.delete('ontonim_auth_token');
+        await this._context.globalState.update('ontonim_auth_user', null);
+        await this.sendAuthStateToWebview();
+    }
+
+    async postToBackend(pathName, body) {
+        const token = await this._context.secrets.get('ontonim_auth_token');
+        if (!token) return null;
+
+        const response = await fetch(`${this.getBackendUrl()}${pathName}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Backend sync failed (${response.status}): ${text}`);
+        }
+
+        return response.json();
+    }
+
+    async syncCredentialToBackend(provider, model, apiKey = '') {
+        try {
+            const auth = await this.getAuthState();
+            if (!auth.isAuthenticated) return;
+
+            await this.postToBackend('/api/credentials', {
+                provider,
+                selectedModel: model,
+                apiKey
+            });
+        } catch (err) {
+            console.warn('Ontonim AI credential sync failed:', err.message);
+        }
+    }
+
+    async syncPromptHistoryToBackend({ prompt, activeFile, mode, provider, model }) {
+        try {
+            const auth = await this.getAuthState();
+            if (!auth.isAuthenticated) return;
+
+            await this.postToBackend('/api/history', {
+                prompt,
+                activeFile: activeFile || '',
+                mode: mode || 'agent',
+                provider,
+                model
+            });
+        } catch (err) {
+            console.warn('Ontonim AI prompt history sync failed:', err.message);
+        }
     }
 
     async sendSettingsToWebview() {
@@ -433,8 +646,17 @@ class OntonimAIChatProvider {
         if (!this._view) return;
 
         this._currentMode = mode;
+        this._cancelRequested = false;
+        this._stopNoticeSent = false;
 
         const { apiProvider, apiKey, model, providerName } = await this.getProviderConfig();
+        await this.syncPromptHistoryToBackend({
+            prompt: text,
+            activeFile,
+            mode,
+            provider: apiProvider,
+            model
+        });
 
         if (!apiKey) {
             this._view.webview.postMessage({
@@ -480,10 +702,22 @@ class OntonimAIChatProvider {
         this._view.webview.postMessage({ command: 'generationStarted' });
 
         while (continueLoop && turn < maxTurns) {
+            if (this._cancelRequested) {
+                break;
+            }
+
             turn++;
             try {
                 // Call LLM
-                const response = await agent.callLLM(apiProvider, apiKey, model, this._history, this._currentMode || 'agent');
+                this._abortController = new AbortController();
+                const response = await agent.callLLM(apiProvider, apiKey, model, this._history, this._currentMode || 'agent', {
+                    signal: this._abortController.signal
+                });
+                this._abortController = null;
+
+                if (this._cancelRequested) {
+                    break;
+                }
                 
                 // Parse proposed tool calls
                 const toolCalls = this._currentMode === 'chat' ? [] : agent.parseToolCalls(response);
@@ -523,6 +757,14 @@ class OntonimAIChatProvider {
                     }
                 }
             } catch (error) {
+                this._abortController = null;
+                if (this._cancelRequested || error.name === 'AbortError') {
+                    this._history.push({ role: 'user', content: "The current generation was stopped by the user." });
+                    this.sendStopNotice();
+                    continueLoop = false;
+                    break;
+                }
+
                 this._view.webview.postMessage({
                     command: 'addMessage',
                     sender: 'assistant',
@@ -539,6 +781,7 @@ class OntonimAIChatProvider {
         if (!this._view || !this._pendingToolCalls) return;
 
         this._view.webview.postMessage({ command: 'generationStarted' });
+        this._cancelRequested = false;
 
         const toolCalls = this._pendingToolCalls;
         const aiResponse = this._pendingAiResponse;
@@ -553,6 +796,11 @@ class OntonimAIChatProvider {
         const results = [];
 
         for (let i = 0; i < toolCalls.length; i++) {
+            if (this._cancelRequested) {
+                results.push(`<tool_response name="stopped">\nTool execution was stopped by the user before remaining actions ran.\n</tool_response>`);
+                break;
+            }
+
             const tool = toolCalls[i];
             
             // Notify WebView that tool is running
@@ -592,6 +840,11 @@ class OntonimAIChatProvider {
         const toolResultsMessage = `Tool execution results:\n${results.join('\n')}`;
         this._history.push({ role: 'user', content: toolResultsMessage });
 
+        if (this._cancelRequested) {
+            this._view.webview.postMessage({ command: 'generationFinished' });
+            return;
+        }
+
         // Query AI again with the results
         const { apiProvider, apiKey, model } = await this.getProviderConfig();
         
@@ -607,12 +860,41 @@ class OntonimAIChatProvider {
         this._view.webview.postMessage({ command: 'generationFinished' });
     }
 
+    stopCurrentRun() {
+        this._cancelRequested = true;
+        this._pendingToolCalls = null;
+        this._pendingAiResponse = null;
+
+        if (this._abortController) {
+            this._abortController.abort();
+            this._abortController = null;
+        }
+
+        this._history.push({ role: 'user', content: "The current generation was stopped by the user." });
+        if (this._view) {
+            this._view.webview.postMessage({ command: 'generationFinished' });
+            this.sendStopNotice();
+        }
+    }
+
+    sendStopNotice() {
+        if (!this._view || this._stopNoticeSent) return;
+        this._stopNoticeSent = true;
+        this._view.webview.postMessage({
+            command: 'addMessage',
+            sender: 'assistant',
+            text: 'Stopped. No further actions will run for that request.'
+        });
+    }
+
     async handleEditPrompt(userPromptIndex, text, activeFile) {
         if (!this._view) return;
 
         // Reset pending fields
         this._pendingToolCalls = null;
         this._pendingAiResponse = null;
+        this._cancelRequested = false;
+        this._stopNoticeSent = false;
 
         // Find the index in history corresponding to the N-th user prompt
         let userPromptCount = 0;
@@ -650,9 +932,17 @@ class OntonimAIChatProvider {
 
         // Replace/Add user prompt in conversation history
         this._history.push({ role: 'user', content: fullUserMessage });
+        const { apiProvider, model } = await this.getProviderConfig();
+        await this.syncPromptHistoryToBackend({
+            prompt: text,
+            activeFile,
+            mode: 'agent',
+            provider: apiProvider,
+            model
+        });
 
         // Retrieve config and re-run agent loop
-        const { apiProvider, apiKey, model } = await this.getProviderConfig();
+        const { apiKey } = await this.getProviderConfig();
 
         await this.runAgentIteration(apiProvider, apiKey, model);
     }

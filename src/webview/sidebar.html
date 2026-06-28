@@ -80,6 +80,126 @@
             overflow: hidden;
         }
 
+        .auth-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94)),
+                var(--bg-card);
+        }
+
+        .auth-panel {
+            width: min(360px, 100%);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            background: rgba(30, 41, 59, 0.72);
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .auth-title {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .auth-title strong {
+            color: var(--text-main);
+            font-size: 15px;
+        }
+
+        .auth-title span {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .auth-copy {
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .google-login-btn {
+            border: none;
+            background: white;
+            color: #111827;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        .google-login-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .google-login-btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-status {
+            min-height: 16px;
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .auth-status.error {
+            color: #fca5a5;
+        }
+
+        .user-chip {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            max-width: 160px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 999px;
+            padding: 3px 7px 3px 4px;
+        }
+
+        .user-chip img {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .user-chip span {
+            color: var(--text-main);
+            font-size: 10.5px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Top Header */
         .header {
             display: flex;
@@ -978,6 +1098,16 @@
             overflow: auto;
         }
 
+        .approval-note {
+            color: var(--text-muted);
+            font-size: 10.5px;
+            line-height: 1.4;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.16);
+            border-radius: 6px;
+            padding: 7px 9px;
+        }
+
         .diff-preview {
             margin-top: 7px;
             background: rgba(0, 0, 0, 0.25);
@@ -1188,36 +1318,111 @@
         .code-action-btn.insert:hover { color: #34d399; }
         .code-action-btn.newfile:hover { color: #a78bfa; }
 
-        /* Thinking/Typing Indicator */
+        /* Work Status */
         .thinking-indicator {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 8px 14px 0;
+            padding: 9px 10px;
+            background: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(139, 92, 246, 0.22);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+            color: var(--text-main);
+        }
+
+        .work-status-main {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .work-spinner {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid rgba(139, 92, 246, 0.22);
+            border-top-color: var(--accent-primary);
+            animation: spin 0.9s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .work-status-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .work-status-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .work-status-subtitle {
+            color: var(--text-muted);
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .work-progress {
+            position: relative;
+            width: 58px;
+            height: 3px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
+        }
+
+        .work-progress::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            width: 42%;
+            border-radius: inherit;
+            background: var(--accent-gradient);
+            animation: slideProgress 1.1s ease-in-out infinite;
+        }
+
+        .stop-btn {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            color: #fca5a5;
+            border-radius: 7px;
+            padding: 5px 8px;
+            font-size: 10.5px;
+            font-weight: 800;
+            cursor: pointer;
             display: flex;
             align-items: center;
             gap: 5px;
-            padding: 8px 12px;
-            background-color: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            border-bottom-left-radius: 3px;
-            align-self: flex-start;
-            margin-top: 4px;
-            color: var(--text-muted);
-            animation: pulse 1.8s infinite;
+            transition: all 0.15s;
+            flex-shrink: 0;
         }
 
-        .dot {
-            width: 5px;
-            height: 5px;
-            background-color: var(--accent-primary);
-            border-radius: 50%;
-            animation: bounce 1.4s infinite both;
-            box-shadow: 0 0 3px var(--accent-primary);
+        .stop-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fecaca;
         }
-        .dot:nth-child(1) { animation-delay: -0.32s; }
-        .dot:nth-child(2) { animation-delay: -0.16s; }
 
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideProgress {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(240%); }
         }
 
         /* Floating Input Panel */
@@ -1322,6 +1527,24 @@
     </style>
 </head>
 <body>
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-panel">
+            <div class="auth-brand">
+                <div class="logo-icon">O</div>
+                <div class="auth-title">
+                    <strong>Sign in to Ontonim AI</strong>
+                    <span>Google account required</span>
+                </div>
+            </div>
+            <p class="auth-copy">Sign in before opening chat. Your name, email, and profile image will be saved securely by your Ontonim AI backend.</p>
+            <button id="google-login-btn" class="google-login-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
+                Continue with Google
+            </button>
+            <div id="auth-status" class="auth-status">Connect your backend first if login does not open.</div>
+        </div>
+    </div>
+
     <!-- Header -->
     <div class="header">
         <div class="header-title-container">
@@ -1344,6 +1567,13 @@
             <!-- Prompt History Trigger -->
             <button id="history-toggle" class="icon-btn" title="Prompt History">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            <div id="user-chip" class="user-chip" title="Signed in user">
+                <img id="user-avatar" alt="">
+                <span id="user-name">User</span>
+            </div>
+            <button id="logout-btn" class="icon-btn" title="Logout" style="display: none;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
             <button id="clear-btn" class="icon-btn" title="Clear Conversation">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
@@ -1473,12 +1703,20 @@
         </div>
     </div>
 
-    <!-- Thinking/Writing Indicator -->
-    <div id="thinking-indicator" class="thinking-indicator" style="display: none; margin-left: 16px;">
-        <span id="thinking-text">Ontonim AI is writing code</span>
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
+    <!-- Work Status Indicator -->
+    <div id="thinking-indicator" class="thinking-indicator">
+        <div class="work-status-main">
+            <div class="work-spinner"></div>
+            <div class="work-status-copy">
+                <span id="thinking-text" class="work-status-title">Ontonim AI is working</span>
+                <span class="work-status-subtitle">Reading context, planning, or writing changes</span>
+            </div>
+        </div>
+        <div class="work-progress"></div>
+        <button id="stop-generation-btn" class="stop-btn" title="Stop current task">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Stop
+        </button>
     </div>
 
     <!-- Floating Input Panel -->
@@ -1502,6 +1740,13 @@
         const vscode = acquireVsCodeApi();
         
         const chatContainer = document.getElementById('chat-container');
+        const authScreen = document.getElementById('auth-screen');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const authStatus = document.getElementById('auth-status');
+        const userChip = document.getElementById('user-chip');
+        const userAvatar = document.getElementById('user-avatar');
+        const userName = document.getElementById('user-name');
+        const logoutBtn = document.getElementById('logout-btn');
         const welcomeScreen = document.getElementById('welcome-screen');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
@@ -1528,6 +1773,7 @@
         const clearBtn = document.getElementById('clear-btn');
         const thinkingIndicator = document.getElementById('thinking-indicator');
         const thinkingText = document.getElementById('thinking-text');
+        const stopGenerationBtn = document.getElementById('stop-generation-btn');
         const activeFileBadge = document.getElementById('active-file');
         const activeFileName = document.getElementById('active-file-name');
 
@@ -1540,6 +1786,39 @@
         let currentActiveFilePath = null;
         let isGenerating = false;
         let currentToolCard = null;
+        let isAuthenticated = false;
+
+        googleLoginBtn.addEventListener('click', () => {
+            googleLoginBtn.disabled = true;
+            authStatus.classList.remove('error');
+            authStatus.textContent = 'Opening Google sign-in in your browser...';
+            vscode.postMessage({ command: 'loginWithGoogle' });
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            vscode.postMessage({ command: 'logout' });
+        });
+
+        function setAuthState(auth) {
+            isAuthenticated = !!auth.isAuthenticated;
+            authScreen.style.display = isAuthenticated ? 'none' : 'flex';
+            userChip.style.display = isAuthenticated && auth.user ? 'flex' : 'none';
+            logoutBtn.style.display = isAuthenticated ? 'flex' : 'none';
+            googleLoginBtn.disabled = false;
+
+            if (isAuthenticated && auth.user) {
+                userAvatar.src = auth.user.image || '';
+                userName.textContent = auth.user.name || auth.user.email || 'User';
+                userChip.title = `${auth.user.name || 'User'} (${auth.user.email || 'No email'})`;
+                authStatus.classList.remove('error');
+                authStatus.textContent = '';
+            } else {
+                userAvatar.src = '';
+                userName.textContent = 'User';
+                authStatus.textContent = auth.error || 'Sign in to unlock Ontonim AI chat.';
+                authStatus.classList.toggle('error', !!auth.error);
+            }
+        }
 
         intelRefresh.addEventListener('click', () => {
             intelRefresh.textContent = 'Scanning';
@@ -1843,6 +2122,14 @@
         function performSend(overrideText = null) {
             const text = overrideText !== null ? overrideText : chatInput.value.trim();
             if (!text || isGenerating) return;
+            if (!isAuthenticated) {
+                setAuthState({
+                    isAuthenticated: false,
+                    user: null,
+                    error: 'Please sign in with Google first.'
+                });
+                return;
+            }
 
             // Remove welcome screen on first message
             if (welcomeScreen.parentNode === chatContainer) {
@@ -1888,6 +2175,13 @@
         });
 
         sendBtn.addEventListener('click', () => performSend());
+
+        stopGenerationBtn.addEventListener('click', () => {
+            if (!isGenerating) return;
+            thinkingText.textContent = 'Stopping current task';
+            stopGenerationBtn.disabled = true;
+            vscode.postMessage({ command: 'stopGeneration' });
+        });
 
         // Helper to copy text to clipboard
         function copyToClipboard(text, btn) {
@@ -2087,7 +2381,6 @@
             } else {
                 chips = [
                     { label: '🔍 Explain Details', prompt: 'Explain the details of the solution proposed above.' },
-                    { label: '❓ Ask Follow-up', prompt: 'Are there alternative approaches to this problem?' }
                 ];
             }
 
@@ -2119,6 +2412,8 @@
             isGenerating = generating;
             sendBtn.disabled = generating;
             thinkingIndicator.style.display = generating ? 'flex' : 'none';
+            stopGenerationBtn.disabled = !generating;
+            thinkingText.textContent = generating ? 'Ontonim AI is working' : 'Ontonim AI is idle';
             if (generating) {
                 scrollToBottom();
             } else {
@@ -2291,7 +2586,7 @@
             const headerDiv = document.createElement('div');
             headerDiv.className = 'tool-request-header';
             headerDiv.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                                   <span>Ontonim AI wants to execute actions:</span>`;
+                                   <span>Proposed action list</span>`;
             containerDiv.appendChild(headerDiv);
 
             if (planText) {
@@ -2300,6 +2595,11 @@
                 planDiv.innerHTML = parseMarkdown(planText);
                 containerDiv.appendChild(planDiv);
             }
+
+            const noteDiv = document.createElement('div');
+            noteDiv.className = 'approval-note';
+            noteDiv.textContent = 'No file, command, or workspace change will run until you confirm. Choose Cancel to stop this task without changing anything.';
+            containerDiv.appendChild(noteDiv);
 
             // Collapsible header (hidden initially)
             const collapseHeader = document.createElement('div');
@@ -2398,7 +2698,7 @@
             approveBtn.className = 'btn btn-approve';
             approveBtn.innerHTML = `
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Approve & Run
+                Confirm & Run
             `;
             approveBtn.onclick = () => {
                 approveBtn.disabled = true;
@@ -2417,7 +2717,7 @@
                 rejectBtn.disabled = true;
                 containerDiv.style.borderColor = 'rgba(239, 68, 68, 0.4)';
                 containerDiv.style.background = 'rgba(239, 68, 68, 0.05)';
-                headerDiv.innerHTML = '<span style="color:#ef4444;">Actions rejected by user.</span>';
+                headerDiv.innerHTML = '<span style="color:#ef4444;">Task cancelled. No actions were executed.</span>';
                 actionsDiv.remove();
                 vscode.postMessage({ command: 'rejectTools' });
             };
@@ -2544,6 +2844,15 @@
                     updateModelOptions(provider, message.model);
                     autoApproveInput.checked = !!message.autoApprove;
                     validateKeys();
+                    break;
+
+                case 'setAuthState':
+                    setAuthState(message);
+                    break;
+
+                case 'authProgress':
+                    authStatus.classList.remove('error');
+                    authStatus.textContent = message.status || 'Waiting for Google sign-in...';
                     break;
 
                 case 'requireToolApproval':

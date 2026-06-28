@@ -57,12 +57,20 @@
         "title": "Ontonim AI: Clear API Key"
       },
       {
+        "command": "ontonim-ai.logout",
+        "title": "Ontonim AI: Logout"
+      },
+      {
         "command": "ontonim-ai.explainAndFix",
         "title": "Ontonim AI: Explain and Fix Error"
       },
       {
         "command": "ontonim-ai.refreshWorkspaceState",
         "title": "Ontonim AI: Refresh Workspace Intelligence"
+      },
+      {
+        "command": "ontonim-ai",
+        "title": "Ontonim AI"
       }
     ],
     "keybindings": [
@@ -110,12 +118,27 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically run read-only tools without prompting for user approval."
+        },
+        "ontonimAi.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:3987",
+          "description": "Backend URL used for Google login and user profile sync."
         }
       }
     }
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "backend:dev": "node backend/server.js",
+    "backend:start": "node backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.5.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.0.1"
   },
   "devDependencies": {
     "@types/vscode": "^1.75.0",
