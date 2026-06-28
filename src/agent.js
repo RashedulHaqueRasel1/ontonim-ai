@@ -10,9 +10,10 @@ To perform actions, you MUST use the following XML-based tool call formats. You 
 Always provide a brief, helpful message explaining what you are doing before outputting tool calls.
 
 Plan-first workflow:
-- For every implementation, refactor, fix, command, file creation, file edit, move, rename, or deletion, first analyze the workspace and then present a concrete plan before any mutating tool.
-- The plan must include: goal, affected files, execution steps, validation, risks, and rollback notes.
-- The VS Code host will ask the user to approve proposed actions before they execute.
+- For every user task that requires workspace actions, first analyze the workspace and then present a concrete proposed action list before any tool call.
+- For every implementation, refactor, fix, command, file creation, file edit, move, rename, or deletion, the plan must include: goal, affected files, exact execution steps, validation, risks, and rollback notes.
+- Treat the plan as a confirmation request: the VS Code host will show the proposed actions with Confirm & Run and Cancel buttons before they execute.
+- Do not imply that files have been changed until the user confirms and the tool results show success.
 - After changes, validate when possible and finish with a final report: changed files, validation, risks, and recommended next steps.
 - Never skip user approval for mutating tools.
 
@@ -188,9 +189,10 @@ function parseToolCalls(text) {
  * @param {string} model 
  * @param {Array<Object>} messages 
  * @param {string} mode - 'agent' or 'chat'
+ * @param {{signal?: AbortSignal}} options
  * @returns {Promise<string>} AI content response
  */
-async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
+async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent', options = {}) {
     if (!apiKey) {
         const providerName = getProviderName(apiProvider);
         throw new Error(`${providerName} API key is missing. Please set it in Ontonim AI settings.`);
@@ -237,16 +239,30 @@ async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
     }
 
     try {
-        const response = await fetch(endpoint, {
+        let response = await fetch(endpoint, {
             method: "POST",
             headers: headers,
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: options.signal
         });
+
+        if (response.status === 429) {
+            const retryAfterMs = getRetryAfterMs(response);
+            if (retryAfterMs > 0 && retryAfterMs <= 8000) {
+                await sleep(retryAfterMs, options.signal);
+                response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify(payload),
+                    signal: options.signal
+                });
+            }
+        }
 
         if (!response.ok) {
             const errBody = await response.text();
             const providerName = getProviderName(apiProvider);
-            throw new Error(`${providerName} API error: ${response.status} - ${errBody}`);
+            throw new Error(formatProviderError(providerName, response.status, errBody, response.headers));
         }
 
         const data = await response.json();
@@ -262,6 +278,75 @@ async function callLLM(apiProvider, apiKey, model, messages, mode = 'agent') {
         console.error(`${providerName} API call failed:`, error);
         throw error;
     }
+}
+
+function getRetryAfterMs(response) {
+    const retryAfter = response.headers.get('retry-after');
+    if (!retryAfter) return 0;
+
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) {
+        return Math.max(0, seconds * 1000);
+    }
+
+    const retryDate = Date.parse(retryAfter);
+    if (Number.isNaN(retryDate)) return 0;
+    return Math.max(0, retryDate - Date.now());
+}
+
+function sleep(ms, signal) {
+    return new Promise((resolve, reject) => {
+        if (signal && signal.aborted) {
+            reject(createAbortError());
+            return;
+        }
+
+        const timer = setTimeout(resolve, ms);
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                clearTimeout(timer);
+                reject(createAbortError());
+            }, { once: true });
+        }
+    });
+}
+
+function createAbortError() {
+    const error = new Error('The operation was aborted.');
+    error.name = 'AbortError';
+    return error;
+}
+
+function formatProviderError(providerName, status, errBody, headers) {
+    const parsedMessage = extractErrorMessage(errBody);
+    const retryAfter = headers.get('retry-after');
+
+    if (status === 429) {
+        const retryText = retryAfter ? ` Retry after: ${retryAfter}.` : '';
+        return [
+            `${providerName} returned 429 rate/quota limit.`,
+            parsedMessage ? `Provider message: ${parsedMessage}` : '',
+            `${retryText}This usually means the selected model has hit request/token limits, the API project has no remaining credit, billing is not enabled for API usage, or the provider account tier does not include that model. A ChatGPT/Groq subscription does not always equal API billing access.`,
+            `Try a lower-cost model, wait for the limit window to reset, or check the provider dashboard for API credits and model access.`
+        ].filter(Boolean).join('\n')
+    }
+
+    return `${providerName} API error: ${status}${parsedMessage ? ` - ${parsedMessage}` : ` - ${errBody}`}`;
+}
+
+function extractErrorMessage(errBody) {
+    if (!errBody) return '';
+    try {
+        const parsed = JSON.parse(errBody);
+        if (typeof parsed.error === 'string') return parsed.error;
+        if (parsed.error && typeof parsed.error.message === 'string') return parsed.error.message;
+        if (typeof parsed.message === 'string') return parsed.message;
+        if (typeof parsed.detail === 'string') return parsed.detail;
+    } catch {
+        // Fall through to text body.
+    }
+
+    return errBody.length > 700 ? `${errBody.slice(0, 700)}...` : errBody;
 }
 
 function extractResponseContent(data) {
@@ -296,8 +381,8 @@ function getProviderName(apiProvider) {
 /**
  * Call OpenRouter API with message history (for backwards compatibility).
  */
-async function callOpenRouter(apiKey, model, messages, mode = 'agent') {
-    return callLLM('openrouter', apiKey, model, messages, mode);
+async function callOpenRouter(apiKey, model, messages, mode = 'agent', options = {}) {
+    return callLLM('openrouter', apiKey, model, messages, mode, options);
 }
 
 /**
